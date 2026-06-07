@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "App client or staff member credentials and details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "role": { "type": "string", "enum": ["Client", "Operator", "Admin"] },
+        "isVerified": { "type": "boolean" },
+        "passwordHash": { "type": "string" }
+      },
+      "required": ["id", "email", "firstName", "lastName", "role", "isVerified"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Tourist booking and document registration order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientEmail": { "type": "string" },
+        "passportNumber": { "type": "string" },
+        "country": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["Payment Pending", "In Progress", "Paid", "Completed", "Rejected due to violations"] },
+        "usdAmount": { "type": "number" },
+        "currency": { "type": "string" },
+        "arrivalDate": { "type": "string" },
+        "departureDate": { "type": "string" },
+        "daysCount": { "type": "number" },
+        "paymentTxId": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "operatorNotes": { "type": "string" },
+        "finalDocUrl": { "type": "string" },
+        "finalDocName": { "type": "string" },
+        "violationReportUrl": { "type": "string" }
+      },
+      "required": ["id", "clientName", "clientEmail", "status", "createdAt"]
+    },
+    "SystemConfig": {
+      "title": "SystemConfig",
+      "description": "Application regulatory copy, keys and chatbot script rules",
+      "type": "object",
+      "properties": {
+        "supportAiScript": { "type": "string" },
+        "publicOfferText": { "type": "string" },
+        "publicOfferTextFR": { "type": "string" },
+        "publicOfferTextRU": { "type": "string" }
+      },
+      "required": ["supportAiScript", "publicOfferText"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "History of system events, logins and state transformations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "userEmail", "action", "details"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Collection of user auth profiles and access roles"
+    },
+    "orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Collection of temporary registration document workflows"
+    },
+    "system_config/{configId}": {
+      "schema": { "$ref": "#/entities/SystemConfig" },
+      "description": "Singleton config parameters document"
+    },
+    "audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Traceability ledger for backend system inspections"
+    }
+  }
+}

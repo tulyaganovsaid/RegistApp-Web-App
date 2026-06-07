@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Explicitly verifies Admin permissions using system user ID or fallback corporate email
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.uid == "YmHbaNrbd5U6kGgotrsZdlT2RBP2" ||
+        (request.auth.token != null && 'email' in request.auth.token && request.auth.token.email == "admin@registapp.uz")
+      );
+    }
+
+    // Explicitly verifies Operator permissions using system user ID or fallback corporate email
+    function isOperator() {
+      return isAuthenticated() && (
+        request.auth.uid == "pUrYJVVb31RYKK3pXRTz4Ih0jgG3" ||
+        (request.auth.token != null && 'email' in request.auth.token && request.auth.token.email == "operator@registapp.uz")
+      );
+    }
+
+    function isStaff() {
+      return isAdmin() || isOperator();
+    }
+
+    // Default safety deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Users collection rules
+    match /users/{userId} {
+      // Admins and Operators hold full read permission for client verification reviews.
+      // Individual client accounts can read and manage their own details.
+      allow read: if isAdmin() || isOperator() || (isAuthenticated() && request.auth.uid == userId);
+      allow create, update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow delete: if isAdmin();
+    }
+
+    // 2. Orders collection rules
+    match /orders/{orderId} {
+      // Authorized staff (Admin, Operator) have global read & write access to oversee and update registrations.
+      // Clients have access restricted strictly to their own orders (matched via UID or Email verification).
+      allow read: if isStaff() || (
+        isAuthenticated() && (
+          (resource == null) ||
+          (resource.data != null && 'userId' in resource.data && resource.data.userId == request.auth.uid) ||
+          (resource.data != null && 'clientEmail' in resource.data && request.auth.token != null && 'email' in request.auth.token && resource.data.clientEmail.lower() == request.auth.token.email.lower())
+        )
+      );
+      
+      allow create: if isStaff() || (
+        isAuthenticated() && (
+          (request.resource.data != null && 'userId' in request.resource.data && request.resource.data.userId == request.auth.uid) ||
+          (request.resource.data != null && 'clientEmail' in request.resource.data && request.auth.token != null && 'email' in request.auth.token && request.resource.data.clientEmail.lower() == request.auth.token.email.lower())
+        )
+      );
+      
+      allow update: if isStaff() || (
+        isAuthenticated() && (
+          (resource.data != null && 'userId' in resource.data && resource.data.userId == request.auth.uid) ||
+          (resource.data != null && 'clientEmail' in resource.data && request.auth.token != null && 'email' in request.auth.token && resource.data.clientEmail.lower() == request.auth.token.email.lower())
+        )
+      );
+      
+      allow delete: if isAdmin();
+    }
+
+    // 3. System Config collection rules
+    match /system_config/{configId} {
+      // Public copy text guidelines (AI scripts, instructions, general landing offers) are readable by anyone.
+      // Only Admins can publish modifications to system configs.
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 4. Audit Logs rules
+    match /audit_logs/{logId} {
+      // Only system staff (Admins/Operators) trace backend events and chronological updates.
+      // Audited workflows, logs, and trace events can be written by any registered user.
+      allow read: if isStaff();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+  }
+}
