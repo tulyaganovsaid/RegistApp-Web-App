@@ -1,4 +1,4 @@
-import { User, Order, SystemConfig, UserRole } from './types';
+import { User, Order, SystemConfig, UserRole, SimulatedEmail } from './types';
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -181,6 +181,7 @@ export function registerFirebaseListenersForUser(email: string, role: UserRole, 
       ordersQuery = query(collection(db, 'orders'), where('clientEmail', '==', normalizedEmail));
     }
 
+    let initialLoadDone = false;
     const unsub = onSnapshot(ordersQuery, (snapshot) => {
       if (snapshot.empty && (resolvedRole === 'Admin' || resolvedRole === 'Operator')) {
         // Seed if empty
@@ -193,6 +194,22 @@ export function registerFirebaseListenersForUser(email: string, role: UserRole, 
           orders.push(docSnap.data());
         });
         
+        if (initialLoadDone) {
+          try {
+            const prevOrders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+            const prevIds = new Set(prevOrders.map((o: any) => o.id));
+            orders.forEach((o: any) => {
+              if (o && o.id && !prevIds.has(o.id)) {
+                if (resolvedRole === 'Admin' || resolvedRole === 'Operator') {
+                  window.dispatchEvent(new CustomEvent('registapp-new-order-alert', { detail: o }));
+                }
+              }
+            });
+          } catch (e) {
+            console.warn('New order detection error:', e);
+          }
+        }
+        
         if (resolvedRole === 'Admin' || resolvedRole === 'Operator') {
           localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
         } else {
@@ -202,6 +219,7 @@ export function registerFirebaseListenersForUser(email: string, role: UserRole, 
           const merged = [...external, ...orders];
           localStorage.setItem(ORDERS_KEY, JSON.stringify(merged));
         }
+        initialLoadDone = true;
         window.dispatchEvent(new CustomEvent('db-sync'));
       }
     }, (error) => {
@@ -1337,6 +1355,12 @@ export function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'status'
   orders.push(newOrder);
   saveOrders(orders);
   
+  try {
+    sendNewOrderStaffEmail(newOrder);
+  } catch (err) {
+    console.warn('Error sending simulated staff email:', err);
+  }
+  
   addAuditLog(orderData.clientEmail, 'Order Initiated', `Created order ${orderId} in currency ${orderData.currency}.`);
   return newOrder;
 }
@@ -1438,6 +1462,13 @@ export function completeOrder(orderId: string, operatorId: string, finalDocUrl: 
   orders[index].completedAt = new Date().toISOString();
 
   saveOrders(orders);
+  
+  try {
+    sendCompletedOrderClientEmail(orders[index]);
+  } catch (err) {
+    console.warn('Error sending simulated client email:', err);
+  }
+  
   addAuditLog('operator@registapp.uz', 'Order Verification Completed', `Successfully uploaded registration PDF and archived order ${orderId}.`);
   return orders[index];
 }
@@ -1554,3 +1585,103 @@ export function updateStaffUser(oldEmail: string, newEmail: string, firstName: s
   saveUsers(users);
   addAuditLog('admin@registapp.uz', 'Staff Account Updated', `Updated staff member ${newEmail}. Name: ${firstName} ${lastName}. Password changed: ${!!newPass}`);
 }
+
+const SIMULATED_EMAILS_KEY = 'registapp_simulated_emails';
+
+export function getSimulatedEmails(): SimulatedEmail[] {
+  try {
+    return JSON.parse(localStorage.getItem(SIMULATED_EMAILS_KEY) || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveSimulatedEmails(emails: SimulatedEmail[]) {
+  localStorage.setItem(SIMULATED_EMAILS_KEY, JSON.stringify(emails));
+  window.dispatchEvent(new CustomEvent('emails-updated'));
+}
+
+export function sendSimulatedEmail(recipient: string, subject: string, body: string, attachmentName?: string, attachmentUrl?: string) {
+  const emails = getSimulatedEmails();
+  const newEmail: SimulatedEmail = {
+    id: `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    sender: 'notify@registapp.uz',
+    recipient: recipient.toLowerCase(),
+    subject,
+    body,
+    timestamp: new Date().toISOString(),
+    attachmentName,
+    attachmentUrl,
+    isRead: false
+  };
+  emails.unshift(newEmail);
+  saveSimulatedEmails(emails);
+}
+
+export function sendNewOrderStaffEmail(order: Order) {
+  const subject = `[RegistApp System] NEW ORDER ALERT: ${order.id}`;
+  const body = `
+    <div style="font-family: sans-serif; color: #1E2222; background-color: #f7f7f7; padding: 20px; border-radius: 8px;">
+      <h2 style="color: #7A9A3C; margin-top: 0; border-bottom: 2px solid #7A9A3C; padding-bottom: 8px;">⚠️ New Registration Order Initiated</h2>
+      <p>A new visitor registration request has been created in the RegistApp system and is awaiting your operational review.</p>
+      <table border="1" cellpadding="8" style="border-collapse: collapse; border-color: #3E4747; background-color: #FFFFFF; width: 100%; border-radius: 6px; overflow: hidden;">
+        <tr style="background-color: #23292A; color: #E5E5E5;"><td style="font-weight: bold; width: 30%;">Order/Doc ID:</td><td>${order.id}</td></tr>
+        <tr><td style="font-weight: bold;">Client Name:</td><td>${order.clientName}</td></tr>
+        <tr><td style="font-weight: bold;">Client Email:</td><td>${order.clientEmail}</td></tr>
+        <tr><td style="font-weight: bold;">Country of Origin:</td><td>${order.country}</td></tr>
+        <tr><td style="font-weight: bold;">Stay Period:</td><td>${order.startDate} to ${order.endDate} (${order.totalDays} days)</td></tr>
+        <tr><td style="font-weight: bold;">Visa Requirements:</td><td>${order.visaType}</td></tr>
+        <tr><td style="font-weight: bold;">Total Amount:</td><td><strong>${order.totalPrice.toLocaleString()} ${order.currency}</strong></td></tr>
+        <tr style="background-color: #f0fdf4;"><td style="font-weight: bold; color: #166534;">Workflow Status:</td><td style="color: #166534; font-weight: bold;">${order.status}</td></tr>
+      </table>
+      <p style="margin-top: 15px; font-size: 13px; color: #3e4747;">Please log in to the RegistApp Control Panel to verify the submitted documents (passport scans and border stamps) and process the registration entry.</p>
+      <hr style="border: 0; border-top: 1px solid #ddd; margin-top: 20px;" />
+      <p style="font-size: 11px; color: #646B6B;">RegistApp Security System. Operating under Family Enterprise "Jules Verne Hostel" (Tashkent, Uzbekistan).</p>
+    </div>
+  `;
+  sendSimulatedEmail('operator@registapp.uz', subject, body);
+  sendSimulatedEmail('admin@registapp.uz', subject, body);
+}
+
+export function sendCompletedOrderClientEmail(order: Order) {
+  const subject = `[RegistApp] Your Uzbekistan State Registration is Ready / Ваша Гос.Регистрация Готова (Ref: ${order.id})`;
+  const body = `
+    <div style="font-family: sans-serif; color: #1E2222; background-color: #f7f7f7; padding: 25px; border-radius: 8px; line-height: 1.5;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="https://img.icons8.com/color/96/000000/uzbekistan-embassy.png" alt="Uzbekistan" style="height: 60px;" />
+        <h2 style="color: #7A9A3C; margin-top: 10px;">🎉 Registration Successful! / Регистрация Успешна</h2>
+      </div>
+      <p>Dear <strong>${order.clientName}</strong>,</p>
+      <p>We are pleased to inform you that your official remote temporary state registration for your independent travel in the Republic of Uzbekistan has been successfully processed and recorded in the state <strong>"E-mehmon"</strong> database.</p>
+      
+      <div style="background-color: #f0fdf4; border: 1px solid #7A9A3C; border-radius: 8px; padding: 15px; color: #166534; margin: 15px 0;">
+        <h3 style="margin-top: 0; color: #14532d; border-bottom: 1px solid #7a9a3c; padding-bottom: 5px;">📋 Registration Voucher Details</h3>
+        <table style="width: 100%; font-size: 14px;">
+          <tr><td style="font-weight: bold; width: 40%;">Registration ID:</td><td>${order.id}</td></tr>
+          <tr><td style="font-weight: bold;">Country of Passport:</td><td>${order.country}</td></tr>
+          <tr><td style="font-weight: bold;">Valid Dates:</td><td>${order.startDate} to ${order.endDate}</td></tr>
+          <tr><td style="font-weight: bold;">State System:</td><td>e-mehmon.uz (Ministry of Tourism and Cultural Heritage of Uzbekistan)</td></tr>
+          <tr><td style="font-weight: bold;">Registered Operator:</td><td>Jules Verne Hostel (RegistApp License)</td></tr>
+        </table>
+      </div>
+
+      <p>Your official registration voucher has been attached directly to this notification and is ready for download below.</p>
+
+      <div style="margin: 25px 0; text-align: center;">
+        <a href="${order.finalDocUrl || '#'}" download="${order.finalDocName || 'uzb-registration.pdf'}" style="background-color: #7A9A3C; color: #E5E5E5; padding: 12px 24px; font-weight: bold; border-radius: 6px; text-decoration: none; display: inline-block; font-size: 15px; box-shadow: 0 4px 6px rgba(122,154,58,0.2);">
+          📥 Download Registration Badge PDF (Скачать Ваучер)
+        </a>
+      </div>
+
+      <p style="font-size: 12px; background-color: #fffbeb; border: 1px solid #fbbf24; padding: 12px; border-radius: 6px; color: #78350f;">
+        <strong>⚠️ Important Legal Note for Travelers:</strong><br/>
+        This digital extract contains an encrypted secure QR-code representing your official legal temporary stay. Border control and immigration checkpoints at all airports, land border crossings, and train connections can verify this document digitally. You do not need to print it out physically; keeping the PDF file on any mobile device is 100% sufficient by migration law.
+      </p>
+
+      <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;" />
+      <p style="font-size: 11px; color: #646B6B; text-align: center;">Thank you for using RegistApp! Have an incredible journey through our historical heritage in Samarkand, Bukhara, and Khiva.</p>
+    </div>
+  `;
+  sendSimulatedEmail(order.clientEmail, subject, body, order.finalDocName || 'registration-stamp.pdf', order.finalDocUrl);
+}
+

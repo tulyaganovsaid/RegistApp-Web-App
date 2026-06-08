@@ -65,3 +65,16 @@ export interface ChatMessage {
 export type LanguageCode = 'en' | 'ru' | 'fr';
 
 export type CurrencyCode = 'USD' | 'EUR' | 'RUB' | 'UZS';
+
+export interface SimulatedEmail {
+  id: string;
+  sender: string;
+  recipient: string;
+  subject: string;
+  body: string;
+  timestamp: string;
+  attachmentName?: string;
+  attachmentUrl?: string;
+  isRead?: boolean;
+}
+
