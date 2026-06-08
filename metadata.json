@@ -1,5 +1,5 @@
 {
-  "name": "RegistApp",
+  "name": "RegistApp® by Jules Verne Hostel",
   "description": "Uzbekistan mandatory tourist registration service platform for foreign tourists, operators, and administrators.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

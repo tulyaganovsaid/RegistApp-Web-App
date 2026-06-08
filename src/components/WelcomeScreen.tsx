@@ -316,7 +316,7 @@ export default function WelcomeScreen({ currentLanguage, onLoginSuccess, setLang
                         required
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
-                        placeholder="client@registapp.uz"
+                        placeholder="your_name@gmail.com"
                         className="w-full rounded-xl border border-gray-800 bg-[#111827] px-4 py-2.5 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-[#65a30d] transition"
                       />
                     </div>
@@ -380,7 +380,7 @@ export default function WelcomeScreen({ currentLanguage, onLoginSuccess, setLang
                           required
                           value={regFirstName}
                           onChange={(e) => setRegFirstName(e.target.value)}
-                          placeholder="Said"
+                          placeholder="Jules"
                           className="w-full rounded-xl border border-gray-800 bg-[#111827] px-3 py-2 text-xs text-gray-100 placeholder-gray-750 outline-none focus:border-[#65a30d] transition"
                         />
                       </div>
@@ -392,7 +392,7 @@ export default function WelcomeScreen({ currentLanguage, onLoginSuccess, setLang
                           required
                           value={regLastName}
                           onChange={(e) => setRegLastName(e.target.value)}
-                          placeholder="Tulyaganov"
+                          placeholder="Verne"
                           className="w-full rounded-xl border border-gray-800 bg-[#111827] px-3 py-2 text-xs text-gray-100 placeholder-gray-750 outline-none focus:border-[#65a30d] transition"
                         />
                       </div>
@@ -406,7 +406,7 @@ export default function WelcomeScreen({ currentLanguage, onLoginSuccess, setLang
                         required
                         value={regEmail}
                         onChange={(e) => setRegEmail(e.target.value)}
-                        placeholder="you@domain.com"
+                        placeholder="your_name@gmail.com"
                         className="w-full rounded-xl border border-gray-800 bg-[#111827] px-4 py-2 text-xs text-gray-100 placeholder-gray-750 outline-none focus:border-[#65a30d] transition"
                       />
                     </div>
