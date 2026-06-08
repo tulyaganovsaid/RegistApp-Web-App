@@ -3,6 +3,7 @@ import { LogIn, UserPlus, Eye, EyeOff, ShieldAlert, CheckCircle, Languages } fro
 import { LanguageCode, User, UserRole } from '../types';
 import { loginUser, registerUser, verifyUserCode, getUsers } from '../db';
 import { translations } from '../translations';
+import { BrandLogo } from './BrandLogo';
 
 interface WelcomeScreenProps {
   currentLanguage: LanguageCode;
@@ -130,56 +131,7 @@ export default function WelcomeScreen({ currentLanguage, onLoginSuccess, setLang
     <div id="card-welcome-container" className="flex min-h-screen flex-col bg-[#111827] text-gray-100 font-sans selection:bg-[#65a30d]/40 selection:text-white">
       {/* Top Banner Navigation (Title & Lang Selector) */}
       <header id="header-auth-top" className="flex items-center justify-between border-b border-gray-800 bg-[#1f2937]/40 px-6 py-4 md:px-12">
-        <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#65a30d] text-white shadow-lg saturate-120 p-1">
-            <svg 
-              viewBox="0 0 100 100" 
-              className="h-full w-full" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2.5" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-              id="brand-logo-svg"
-            >
-              {/* Document Base */}
-              <path d="M22 14h42l18 18v52a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4V18a4 4 0 0 1 4-4z" />
-              {/* Flap */}
-              <path d="M64 14v18h18" />
-              
-              {/* Checklist on the left */}
-              <path d="M29 27l2.5 2.5 5.5-5.5" strokeWidth="3" stroke="#a2e635" />
-              <path d="M29 41l2.5 2.5 5.5-5.5" strokeWidth="3" stroke="#a2e635" />
-              <path d="M29 55l2.5 2.5 5.5-5.5" strokeWidth="3" stroke="#a2e635" />
-              <path d="M29 69l2.5 2.5 5.5-5.5" strokeWidth="3" stroke="#a2e635" />
-              
-              {/* Horizontal line pills */}
-              <rect x="58" y="34" width="16" height="5" rx="2.5" strokeWidth="1.5" />
-              <rect x="58" y="44" width="16" height="5" rx="2.5" strokeWidth="1.5" />
-              <rect x="58" y="54" width="10" height="5" rx="2.5" strokeWidth="1.5" />
-
-              {/* Minaret Tower base */}
-              <path d="M47 84l1-38h6l1 38" />
-              {/* Balcony/slots */}
-              <path d="M45 46h10v-6H45v6z" rx="1" strokeWidth="1.5" />
-              <line x1="48" y1="42" x2="48" y2="44" strokeWidth="1" />
-              <line x1="50" y1="42" x2="50" y2="44" strokeWidth="1" />
-              <line x1="52" y1="42" x2="52" y2="44" strokeWidth="1" />
-              {/* Tower Spire */}
-              <path d="M47 40c0-4 3-5 3-9 0 4 3 5 3 9" />
-              <circle cx="50" cy="27" r="1" fill="currentColor" stroke="none" />
-
-              {/* Mosque Dome */}
-              <path d="M51 84c0-12 7-18 15-18s15 6 15 18H51z" fill="#65a30d" />
-              <line x1="66" y1="66" x2="66" y2="60" strokeWidth="2" />
-              {/* Crescent Moon */}
-              <path d="M68.5 59.5a2.5 2.5 0 1 1-1-3.5 2 2 0 1 0 1 3.5" fill="currentColor" stroke="none" />
-            </svg>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-white select-none">
-            Regist<span className="text-[#a2e635]">App</span>
-          </span>
-        </div>
+        <BrandLogo id="auth-header-logo" />
 
         {/* Translation Switcher Dropdown */}
         <div className="flex items-center space-x-2">
