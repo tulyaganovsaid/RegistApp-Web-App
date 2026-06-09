@@ -381,10 +381,10 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
             className={`mb-6 rounded-xl border p-4 text-xs font-semibold flex items-center space-x-2 ${
               terminalMessage.isError 
                 ? 'bg-red-950/40 border-red-800 text-red-400' 
-                : 'bg-lime-950/40 border-lime-800 text-[#a2e635] animate-pulse'
+                : 'bg-[#65a30d]/10 border border-[#65a30d]/30 text-[#a2e635] animate-pulse'
             }`}
           >
-            {terminalMessage.isError ? <AlertTriangle className="h-4.5 w-4.5 shrink-0" /> : <CheckCircle className="h-4.5 w-4.5 shrink-0 text-lime-400" />}
+            {terminalMessage.isError ? <AlertTriangle className="h-4.5 w-4.5 shrink-0" /> : <CheckCircle className="h-4.5 w-4.5 shrink-0 text-[#a2e635]" />}
             <span>{terminalMessage.text}</span>
           </div>
         )}
@@ -1379,7 +1379,7 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
                             <td className="p-4">
                               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold ${
                                 o.status === 'Completed'
-                                  ? 'bg-lime-950/40 border border-lime-850 text-[#a2e635]'
+                                  ? 'bg-[#65a30d]/10 border border-[#65a30d]/30 text-[#a2e635]'
                                   : o.status === 'In Progress'
                                   ? 'bg-amber-955/40 border border-amber-850 text-amber-400'
                                   : 'bg-gray-805 border border-gray-755 text-gray-400'

@@ -1870,7 +1870,7 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
                             <td className="p-4">
                               <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold ${
                                 o.status === 'Completed'
-                                  ? 'bg-lime-950/40 border border-lime-800 text-[#a2e635]'
+                                  ? 'bg-[#65a30d]/10 border border-[#65a30d]/30 text-[#a2e635]'
                                   : o.status === 'Paid'
                                   ? 'bg-emerald-950/40 border border-emerald-800 text-emerald-400'
                                   : o.status === 'In Progress'
@@ -1957,7 +1957,7 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
                                 <div className="space-y-4 animate-fade-in text-gray-350">
                                   <div className="flex items-center justify-between border-b border-gray-800/60 pb-2">
                                     <h4 className="text-xs font-bold font-mono tracking-wider uppercase text-[#a2e635] flex items-center space-x-2">
-                                      <FileText className="h-3.5 w-3.5 text-lime-500" />
+                                      <FileText className="h-3.5 w-3.5 text-[#a2e635]" />
                                       <span>
                                         {currentLanguage === 'ru' ? 'Документы и файлы по заказу' : currentLanguage === 'fr' ? 'Documents et fichiers de la commande' : 'Order Documents & Files'}
                                       </span>
@@ -2030,7 +2030,7 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
 
                                     {/* Final Registration if completed */}
                                     {o.status === 'Completed' && o.finalDocUrl && (
-                                      <div className="bg-lime-950/20 rounded-xl border border-lime-900/60 p-3.5 flex flex-col justify-between space-y-3 col-span-1 md:col-span-1">
+                                      <div className="bg-[#65a30d]/10 rounded-xl border border-[#65a30d]/40 p-3.5 flex flex-col justify-between space-y-3 col-span-1 md:col-span-1">
                                         <div>
                                           <span className="text-[9px] font-semibold text-[#a2e635] uppercase tracking-widest block">
                                             {currentLanguage === 'ru' ? 'Итоговая регистрация (PDF)' : currentLanguage === 'fr' ? 'Enregistrement' : 'Issued Registration'}
@@ -2154,16 +2154,16 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Slot 1: Passport Page Scan */}
-                  <div id="upload-slot-passport" className={`rounded-xl border p-4 flex flex-col justify-between transition-all duration-300 ${passportScan ? 'border-[#65a30d] bg-[#142410]/70' : 'border-gray-800 bg-[#111827]'}`}>
+                  <div id="upload-slot-passport" className={`rounded-xl border p-4 flex flex-col justify-between transition-all duration-300 ${passportScan ? 'border-[#65a30d] bg-[#65a30d]/10' : 'border-gray-800 bg-[#111827]'}`}>
                     <div>
-                      <span className={`text-[11px] font-bold block mb-1 transition-colors ${passportScan ? 'text-[#84cc16]' : 'text-gray-300'}`}>{t('passportScanLabel')} <span className="text-red-500">*</span></span>
+                      <span className={`text-[11px] font-bold block mb-1 transition-colors ${passportScan ? 'text-[#a2e635]' : 'text-gray-300'}`}>{t('passportScanLabel')} <span className="text-red-500">*</span></span>
                       <p className="text-[10px] text-gray-500 leading-normal mb-3">
                         {currentLanguage === 'ru' ? 'Главная страница с фото полностью читаема, без бликов.' : currentLanguage === 'fr' ? 'Page principale avec photo bien lisible, sans reflets.' : 'Front photo bio page fully legible, no screen glares.'}
                       </p>
                     </div>
-                    <label className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all duration-300 ${passportScan ? 'border-solid border-[#65a30d]/55 bg-[#14320e]/60 hover:bg-[#1a4413]/70' : 'border-dashed border-gray-800 bg-[#1f2937]/40 hover:border-gray-700 hover:bg-[#1f2937]'}`}>
-                      <UploadCloud className={`h-5 w-5 mb-1 transition-colors ${passportScan ? 'text-[#84cc16]' : 'text-gray-500'}`} />
-                      <span className={`text-[9px] text-center font-medium ${passportScan ? 'text-[#a3e635]' : 'text-gray-400'}`}>
+                    <label className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all duration-300 ${passportScan ? 'border-solid border-[#65a30d]/55 bg-[#65a30d]/10 hover:bg-[#65a30d]/20' : 'border-dashed border-gray-800 bg-[#1f2937]/40 hover:border-gray-700 hover:bg-[#1f2937]'}`}>
+                      <UploadCloud className={`h-5 w-5 mb-1 transition-colors ${passportScan ? 'text-[#a2e635]' : 'text-gray-500'}`} />
+                      <span className={`text-[9px] text-center font-medium ${passportScan ? 'text-[#a2e635]' : 'text-gray-400'}`}>
                         {passportName 
                           ? (currentLanguage === 'ru' ? 'Выбрано: ' : currentLanguage === 'fr' ? 'Sélectionné: ' : 'Selected: ') + passportName.slice(0, 20) + '...' 
                           : t('dragDropLabel')}
@@ -2180,16 +2180,16 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
                   </div>
 
                   {/* Slot 2: Arrival border Stamp scan */}
-                  <div id="upload-slot-stamp" className={`rounded-xl border p-4 flex flex-col justify-between transition-all duration-300 ${arrivalStamp ? 'border-[#65a30d] bg-[#142410]/70' : 'border-gray-800 bg-[#111827]'}`}>
+                  <div id="upload-slot-stamp" className={`rounded-xl border p-4 flex flex-col justify-between transition-all duration-300 ${arrivalStamp ? 'border-[#65a30d] bg-[#65a30d]/10' : 'border-gray-800 bg-[#111827]'}`}>
                     <div>
-                      <span className={`text-[11px] font-bold block mb-1 transition-colors ${arrivalStamp ? 'text-[#84cc16]' : 'text-gray-300'}`}>{t('arrivalStampLabel')} <span className="text-red-500">*</span></span>
+                      <span className={`text-[11px] font-bold block mb-1 transition-colors ${arrivalStamp ? 'text-[#a2e635]' : 'text-gray-300'}`}>{t('arrivalStampLabel')} <span className="text-red-500">*</span></span>
                       <p className="text-[10px] text-gray-500 leading-normal mb-3">
                         {currentLanguage === 'ru' ? 'Штамп пограничного контроля при въезде самолетом или сухопутным путем.' : currentLanguage === 'fr' ? 'Tampon de contrôle des frontières à l\'entrée par avion ou par voie terrestre.' : 'Immigration entry stamp from flight or land crossing.'}
                       </p>
                     </div>
-                    <label className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all duration-300 ${arrivalStamp ? 'border-solid border-[#65a30d]/55 bg-[#14320e]/60 hover:bg-[#1a4413]/70' : 'border-dashed border-gray-800 bg-[#1f2937]/40 hover:border-gray-700 hover:bg-[#1f2937]'}`}>
-                      <UploadCloud className={`h-5 w-5 mb-1 transition-colors ${arrivalStamp ? 'text-[#84cc16]' : 'text-gray-500'}`} />
-                      <span className={`text-[9px] text-center font-medium ${arrivalStamp ? 'text-[#a3e635]' : 'text-gray-400'}`}>
+                    <label className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all duration-300 ${arrivalStamp ? 'border-solid border-[#65a30d]/55 bg-[#65a30d]/10 hover:bg-[#65a30d]/20' : 'border-dashed border-gray-800 bg-[#1f2937]/40 hover:border-gray-700 hover:bg-[#1f2937]'}`}>
+                      <UploadCloud className={`h-5 w-5 mb-1 transition-colors ${arrivalStamp ? 'text-[#a2e635]' : 'text-gray-500'}`} />
+                      <span className={`text-[9px] text-center font-medium ${arrivalStamp ? 'text-[#a2e635]' : 'text-gray-400'}`}>
                         {stampName 
                           ? (currentLanguage === 'ru' ? 'Выбрано: ' : currentLanguage === 'fr' ? 'Sélectionné: ' : 'Selected: ') + stampName.slice(0, 20) + '...' 
                           : t('dragDropLabel')}
@@ -2207,16 +2207,16 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
 
                   {/* Slot 3 (Conditional): Uzbekistan visa stamp scan */}
                   {visaType === 'Visa' && (
-                    <div id="upload-slot-visa" className={`rounded-xl border p-4 flex flex-col justify-between md:col-span-2 transition-all duration-300 ${visaScan ? 'border-[#65a30d] bg-[#142410]/70' : 'border-gray-800 bg-[#111827]'}`}>
+                    <div id="upload-slot-visa" className={`rounded-xl border p-4 flex flex-col justify-between md:col-span-2 transition-all duration-300 ${visaScan ? 'border-[#65a30d] bg-[#65a30d]/10' : 'border-gray-800 bg-[#111827]'}`}>
                       <div>
-                        <span className={`text-[11px] font-bold block mb-1 transition-colors ${visaScan ? 'text-[#84cc16]' : 'text-gray-300'}`}>{t('visaScanLabel')} <span className="text-red-500">*</span></span>
+                        <span className={`text-[11px] font-bold block mb-1 transition-colors ${visaScan ? 'text-[#a2e635]' : 'text-gray-300'}`}>{t('visaScanLabel')} <span className="text-red-500">*</span></span>
                         <p className="text-[10px] text-gray-500 leading-normal mb-3">
                           {currentLanguage === 'ru' ? 'Бумажная виза из посольства или электронная виза с QR-кодом.' : currentLanguage === 'fr' ? 'Visa physique de l\'ambassade ou e-Visa avec code QR.' : 'Physical embassy sticker or QR PDF of your eVisa.'}
                         </p>
                       </div>
-                      <label className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all duration-300 ${visaScan ? 'border-solid border-[#65a30d]/55 bg-[#14320e]/60 hover:bg-[#1a4413]/70' : 'border-dashed border-gray-800 bg-[#1f2937]/40 hover:border-gray-700 hover:bg-[#1f2937]'}`}>
-                        <UploadCloud className={`h-5 w-5 mb-1 transition-colors ${visaScan ? 'text-[#84cc16]' : 'text-gray-500'}`} />
-                        <span className={`text-[9px] text-center font-medium ${visaScan ? 'text-[#a3e635]' : 'text-gray-400'}`}>
+                      <label className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all duration-300 ${visaScan ? 'border-solid border-[#65a30d]/55 bg-[#65a30d]/10 hover:bg-[#65a30d]/20' : 'border-dashed border-gray-800 bg-[#1f2937]/40 hover:border-gray-700 hover:bg-[#1f2937]'}`}>
+                        <UploadCloud className={`h-5 w-5 mb-1 transition-colors ${visaScan ? 'text-[#a2e635]' : 'text-gray-500'}`} />
+                        <span className={`text-[9px] text-center font-medium ${visaScan ? 'text-[#a2e635]' : 'text-gray-400'}`}>
                           {visaName 
                             ? (currentLanguage === 'ru' ? 'Выбрано: ' : currentLanguage === 'fr' ? 'Sélectionné: ' : 'Selected: ') + visaName.slice(0, 20) + '...' 
                             : t('dragDropLabel')}
@@ -2445,7 +2445,7 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
                       className="text-gray-450 hover:text-[#a2e635] p-1 rounded hover:bg-gray-800 transition flex items-center space-x-1"
                       title={currentLanguage === 'ru' ? 'Скопировать номер карты' : currentLanguage === 'fr' ? 'Copier le numéro de carte' : 'Copy Card Number'}
                     >
-                      {copiedState ? <Check className="h-4 w-4 text-lime-400" /> : <Copy className="h-4 w-4" />}
+                      {copiedState ? <Check className="h-4 w-4 text-[#a2e635]" /> : <Copy className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -2482,8 +2482,8 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
               )}
 
               {paymentSuccess && (
-                <div className="flex items-center space-x-2 rounded-lg bg-lime-950/50 border border-lime-800 px-3 py-2.5 text-xs text-[#a2e635] animate-pulse" id="alert-payment-success">
-                  <CheckCircle className="h-4 w-4 shrink-0 text-lime-400" />
+                <div className="flex items-center space-x-2 rounded-lg bg-[#65a30d]/10 border border-[#65a30d]/30 px-3 py-2.5 text-xs text-[#a2e635] animate-pulse" id="alert-payment-success">
+                  <CheckCircle className="h-4 w-4 shrink-0 text-[#a2e635]" />
                   <span>{paymentSuccess}</span>
                 </div>
               )}
@@ -2612,8 +2612,8 @@ export default function ClientDashboard({ currentLanguage, setLanguage, currentU
               )}
 
               {profileSuccess && (
-                <div className="flex items-center space-x-2 rounded-lg bg-lime-950/50 border border-lime-800 px-3 py-2.5 text-xs text-lime-400" id="profile-edit-success">
-                  <CheckCircle className="h-4 w-4 shrink-0 text-lime-400" />
+                <div className="flex items-center space-x-2 rounded-lg bg-[#65a30d]/10 border border-[#65a30d]/30 px-3 py-2.5 text-xs text-[#a2e635]" id="profile-edit-success">
+                  <CheckCircle className="h-4 w-4 shrink-0 text-[#a2e635]" />
                   <span>{profileSuccess}</span>
                 </div>
               )}

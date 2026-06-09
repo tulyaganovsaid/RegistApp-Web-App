@@ -7,7 +7,6 @@ import OperatorDashboard from './components/OperatorDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import AdminUserDashboard from './components/AdminUserDashboard';
 import SupportChat from './components/SupportChat';
-import MailSimulationCenter from './components/MailSimulationCenter';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -120,7 +119,6 @@ export default function App() {
 
       {/* Floating Support AI Agent Widget */}
       <SupportChat currentLanguage={currentLanguage} />
-      <MailSimulationCenter />
 
     </div>
   );

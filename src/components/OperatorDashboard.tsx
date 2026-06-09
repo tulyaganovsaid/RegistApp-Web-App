@@ -615,7 +615,7 @@ export default function OperatorDashboard({ currentLanguage, setLanguage, curren
             ) : (
               displayedOrders.length === 0 ? (
                 <div id="card-operator-queue-empty" className="rounded-2xl border border-dashed border-gray-800 bg-[#1f2937]/20 p-12 text-center animate-fade-in">
-                  <CheckCircle className="mx-auto h-12 w-12 text-lime-600 mb-4 animate-bounce" />
+                  <CheckCircle className="mx-auto h-12 w-12 text-[#65a30d] mb-4 animate-bounce" />
                   <p className="text-sm text-gray-400 max-w-sm mx-auto leading-relaxed">
                     {activeTab === 'open' 
                       ? (currentLanguage === 'ru' ? 'Отлично! В очереди нет невыполненных регистраций иностранных туристов. Все каналы соответствуют требованиям.' : 'Excellent ! No pending foreign tourist registrations in queue. State channels are fully compliant in real-time.')
@@ -698,7 +698,7 @@ export default function OperatorDashboard({ currentLanguage, setLanguage, curren
                             <div className="flex flex-col gap-1">
                               <span className={`inline-flex max-w-fit items-center rounded-full px-2 py-0.5 text-[9px] font-bold ${
                                 o.status === 'Completed'
-                                  ? 'bg-lime-950/40 border border-lime-800 text-[#a2e635]'
+                                  ? 'bg-[#65a30d]/10 border border-[#65a30d]/30 text-[#a2e635]'
                                   : o.status === 'Paid'
                                   ? 'bg-emerald-950/40 border border-emerald-800 text-emerald-400'
                                   : o.status === 'Payment Pending'
@@ -1008,8 +1008,8 @@ export default function OperatorDashboard({ currentLanguage, setLanguage, curren
                       : 'This order is in your rejection history. Awaiting correction and resubmission.'}
                   </div>
                 ) : selectedOrder.status === 'Completed' ? (
-                  <div className="rounded-2xl border border-lime-900 bg-lime-950/10 p-5 space-y-4 animate-fade-in" id="operator-completed-display">
-                    <div className="font-bold flex items-center justify-center space-x-1.5 text-lime-450 text-xs">
+                  <div className="rounded-2xl border border-[#65a30d]/40 bg-[#65a30d]/5 p-5 space-y-4 animate-fade-in" id="operator-completed-display">
+                    <div className="font-bold flex items-center justify-center space-x-1.5 text-[#a2e635] text-xs">
                       <CheckCircle className="h-4 w-4 text-[#a2e635]" />
                       <span>{currentLanguage === 'ru' ? 'Регистрация официально выдана' : 'Registration Certificate Issued'}</span>
                     </div>
@@ -1109,8 +1109,8 @@ export default function OperatorDashboard({ currentLanguage, setLanguage, curren
                     )}
 
                     {successMessage && (
-                      <div className="flex items-center space-x-2 rounded-lg bg-lime-950/45 border border-lime-800 px-3 py-2 text-xs text-[#a2e635] animate-pulse" id="alert-operator-success">
-                        <CheckCircle className="h-4 w-4 shrink-0 text-lime-450" />
+                      <div className="flex items-center space-x-2 rounded-lg bg-[#65a30d]/10 border border-[#65a30d]/35 px-3 py-2 text-xs text-[#a2e635] animate-pulse" id="alert-operator-success">
+                        <CheckCircle className="h-4 w-4 shrink-0 text-[#a2e635]" />
                         <span>{successMessage}</span>
                       </div>
                     )}
