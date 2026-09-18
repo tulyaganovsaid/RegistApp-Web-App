@@ -1,4 +1,5 @@
-import { User, Order, SystemConfig, UserRole } from './types';
+import { User, Order, SystemConfig, UserRole, TouristNews, ConsentRecord } from './types';
+import { DEFAULT_NEWS, DEFAULT_LEGAL_KNOWLEDGE_BASE } from './defaultContent';
 import { db, auth } from './firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -60,7 +61,12 @@ export async function saveOrderToFirestore(o: any) {
                       
       const isKnownStaffEmail = userEmail === 'operator@registapp.uz' || 
                                 userEmail === 'admin@registapp.uz' ||
-                                userEmail.endsWith('@registapp.uz');
+                                userEmail === 'admin@registapp.online' ||
+                                userEmail === 'operator1@registapp.online' ||
+                                userEmail === 'operator2@registapp.online' ||
+                                userEmail === 'info@registapp.online' ||
+                                userEmail.endsWith('@registapp.uz') ||
+                                userEmail.endsWith('@registapp.online');
                                 
       const isEmailMatch = o.clientEmail?.toLowerCase() === userEmail;
       
@@ -105,6 +111,85 @@ export async function saveAuditLogToFirestore(al: any) {
   }
 }
 
+export async function saveNewsToFirestore(n: TouristNews) {
+  try {
+    const { auth } = await import('./firebase');
+    if (!auth.currentUser) return;
+    const cleanNews = cleanForFirestore(n);
+    await setDoc(doc(db, 'tourist_news', n.id), cleanNews);
+  } catch (err) {
+    console.error('Error saving news to Firestore:', err);
+  }
+}
+
+export async function deleteNewsFromFirestore(newsId: string) {
+  try {
+    const { auth } = await import('./firebase');
+    if (!auth.currentUser) return;
+    await deleteDoc(doc(db, 'tourist_news', newsId));
+  } catch (err) {
+    console.error('Error deleting news from Firestore:', err);
+  }
+}
+
+export const CONSENTS_KEY = 'registapp_consents';
+
+export function getConsents(): ConsentRecord[] {
+  initializeDB();
+  const raw = localStorage.getItem(CONSENTS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveConsentsLocally(consents: ConsentRecord[]) {
+  localStorage.setItem(CONSENTS_KEY, JSON.stringify(consents));
+}
+
+/**
+ * Persists an immutable user consent document into the Firestore 'consents' collection.
+ * This is a mandatory condition for creating an order: if writing fails, it throws
+ * to prevent order placement in compliance with personal data laws.
+ */
+export async function saveConsentToFirestore(consent: ConsentRecord): Promise<void> {
+  const { auth, handleFirestoreError, OperationType } = await import('./firebase');
+
+  if (!consent.orderId) {
+    throw new Error('Missing orderId in consent document payload');
+  }
+
+  const currentUser = auth.currentUser;
+  const payload: ConsentRecord = {
+    ...consent,
+    id: consent.orderId,
+    userId: consent.userId || currentUser?.uid || '',
+    userEmail: (consent.userEmail || currentUser?.email || '').toLowerCase(),
+  };
+
+  try {
+    const cleanConsent = cleanForFirestore(payload);
+    await setDoc(doc(db, 'consents', consent.orderId), cleanConsent);
+
+    // Update local cache
+    const existing = getConsents();
+    const updated = [payload, ...existing.filter((c) => c.orderId !== consent.orderId)];
+    saveConsentsLocally(updated);
+
+    addAuditLog(
+      payload.userEmail || 'client',
+      'Legal Consent Recorded',
+      `Registered user consent for Order ${consent.orderId}. Versions: Privacy v${consent.documentsVersion?.privacyVersion}, Terms v${consent.documentsVersion?.termsVersion}, Cookies v${consent.documentsVersion?.cookiesVersion}. IP: ${consent.ipAddress}`
+    );
+  } catch (err: any) {
+    console.error('CRITICAL: Failed to save legal consent to Firestore:', err);
+    handleFirestoreError(err, OperationType.WRITE, `consents/${consent.orderId}`);
+    throw err;
+  }
+}
+
 let activeUnsubscribers: (() => void)[] = [];
 
 export function clearFirebaseListeners() {
@@ -141,9 +226,21 @@ export function registerFirebaseListenersForUser(email: string, role: UserRole, 
             seedUsers.forEach((u: any) => saveUserToFirestore(u));
           }
         } else {
+          const deletedUserIds: string[] = JSON.parse(localStorage.getItem('registapp_deleted_user_ids') || '[]');
+          const deletedSet = new Set(deletedUserIds.map((x: string) => x.toLowerCase()));
+
           const users: any[] = [];
           snapshot.forEach(docSnap => {
-            users.push(docSnap.data());
+            const data = docSnap.data();
+            const em = (data.email || '').toLowerCase();
+            const uid = (docSnap.id || '').toLowerCase();
+            if (em === 'client@test.com' || em === 'operator@test.com' || docSnap.id === 'user-client-test' || docSnap.id === 'operator-test' || deletedSet.has(em) || deletedSet.has(uid)) {
+              if (resolvedRole === 'Admin') {
+                deleteDoc(doc(db, 'users', docSnap.id)).catch(() => {});
+              }
+            } else {
+              users.push(data);
+            }
           });
           localStorage.setItem(USERS_KEY, JSON.stringify(users));
           window.dispatchEvent(new CustomEvent('db-sync'));
@@ -259,13 +356,69 @@ export function registerFirebaseListenersForUser(email: string, role: UserRole, 
       console.warn('Audit subscribe failed:', e);
     }
   }
+
+  // 5. Tourist News sync
+  try {
+    const unsub = onSnapshot(collection(db, 'tourist_news'), (snapshot) => {
+      if (snapshot.empty) {
+        if (resolvedRole === 'Admin') {
+          DEFAULT_NEWS.forEach(n => saveNewsToFirestore(n));
+        }
+      } else {
+        const newsItems: any[] = [];
+        snapshot.forEach(docSnap => {
+          newsItems.push(docSnap.data());
+        });
+        newsItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+        localStorage.setItem(NEWS_KEY, JSON.stringify(newsItems));
+        window.dispatchEvent(new CustomEvent('db-sync'));
+      }
+    }, (error) => {
+      console.warn('Tourist News Snapshot error:', error);
+    });
+    activeUnsubscribers.push(unsub);
+  } catch (e) {
+    console.warn('Tourist News subscribe failed:', e);
+  }
+
+  // 6. Consents sync
+  try {
+    const consentsQuery = (resolvedRole === 'Admin' || resolvedRole === 'Operator')
+      ? collection(db, 'consents')
+      : query(collection(db, 'consents'), where('userEmail', '==', normalizedEmail));
+
+    const unsub = onSnapshot(consentsQuery, (snapshot) => {
+      const records: ConsentRecord[] = [];
+      snapshot.forEach(docSnap => {
+        records.push(docSnap.data() as ConsentRecord);
+      });
+      records.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      localStorage.setItem(CONSENTS_KEY, JSON.stringify(records));
+      window.dispatchEvent(new CustomEvent('db-sync'));
+    }, (error) => {
+      console.warn('Consents Snapshot error:', error);
+    });
+    activeUnsubscribers.push(unsub);
+  } catch (e) {
+    console.warn('Consents subscribe failed:', e);
+  }
 }
 
 
 const USERS_KEY = 'registapp_users';
+export const DELETED_USERS_KEY = 'registapp_deleted_user_ids';
 const ORDERS_KEY = 'registapp_orders';
 const CONFIG_KEY = 'registapp_config';
 const AUDIT_KEY = 'registapp_audit';
+const NEWS_KEY = 'registapp_news';
+
+export function getDeletedUserIds(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(DELETED_USERS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
 
 // Tashkent Time (UTC+5) helper
 export function getTashkentTime(): Date {
@@ -305,9 +458,45 @@ const DEFAULT_USERS: Array<User & { passwordHash: string }> = [
   {
     id: '51972',
     email: 'admin@registapp.uz',
-    firstName: 'Dilshod',
-    lastName: 'Alimov',
+    firstName: 'Саид',
+    lastName: 'Туляганов',
     role: 'Admin',
+    isVerified: true,
+    passwordHash: 'admin123',
+  },
+  {
+    id: '70001',
+    email: 'admin@registapp.online',
+    firstName: 'Саид',
+    lastName: 'Туляганов',
+    role: 'Admin',
+    isVerified: true,
+    passwordHash: 'admin123',
+  },
+  {
+    id: '70002',
+    email: 'operator1@registapp.online',
+    firstName: 'Оператор 1',
+    lastName: 'RegistApp',
+    role: 'Operator',
+    isVerified: true,
+    passwordHash: 'admin123',
+  },
+  {
+    id: '70003',
+    email: 'operator2@registapp.online',
+    firstName: 'Оператор 2',
+    lastName: 'RegistApp',
+    role: 'Operator',
+    isVerified: true,
+    passwordHash: 'admin123',
+  },
+  {
+    id: '70004',
+    email: 'info@registapp.online',
+    firstName: 'Инфо-служба',
+    lastName: 'RegistApp',
+    role: 'Operator',
     isVerified: true,
     passwordHash: 'admin123',
   },
@@ -328,6 +517,60 @@ const DEFAULT_USERS: Array<User & { passwordHash: string }> = [
     role: 'Client',
     isVerified: true,
     passwordHash: 'admin123',
+    createdAt: '2026-06-02T11:20:00Z',
+  },
+  {
+    id: 'user-elena',
+    email: 'elena.smirnova@mail.ru',
+    firstName: 'Елена',
+    lastName: 'Смирнова',
+    role: 'Client',
+    isVerified: true,
+    passwordHash: 'admin123',
+    createdAt: '2026-06-04T12:00:00Z',
+  },
+  {
+    id: 'user-david',
+    email: 'david.miller@gmail.com',
+    firstName: 'David',
+    lastName: 'Miller',
+    role: 'Client',
+    isVerified: true,
+    passwordHash: 'admin123',
+    createdAt: '2026-06-06T15:30:00Z',
+    draftStep: 1, // Step 1: Legal options consent
+  },
+  {
+    id: 'user-marcus',
+    email: 'marcus.weber@gmx.de',
+    firstName: 'Marcus',
+    lastName: 'Weber',
+    role: 'Client',
+    isVerified: true,
+    passwordHash: 'admin123',
+    createdAt: '2026-06-05T18:45:00Z',
+    draftStep: 2, // Step 2: Passport Bio Upload
+  },
+  {
+    id: 'user-sophie',
+    email: 'sophie.laurent@orange.fr',
+    firstName: 'Sophie',
+    lastName: 'Laurent',
+    role: 'Client',
+    isVerified: true,
+    passwordHash: 'admin123',
+    createdAt: '2026-06-03T10:00:00Z',
+  },
+  {
+    id: 'user-alex',
+    email: 'alexander.ivanov@yandex.ru',
+    firstName: 'Александр',
+    lastName: 'Иванов',
+    role: 'Client',
+    isVerified: true,
+    passwordHash: 'admin123',
+    createdAt: '2026-06-07T07:15:00Z',
+    // 0 orders, no draft started yet
   }
 ];
 
@@ -584,6 +827,8 @@ Please immediately visit the nearest UVViOG (Migration Department of Internal Af
     EUR: '5423 5818 3652 6605',
     RUB: '2204 3206 0483 2297',
   },
+  legalKnowledgeBase: DEFAULT_LEGAL_KNOWLEDGE_BASE,
+  legalKnowledgeBaseUpdatedAt: '2026-06-01T00:00:00Z',
 };
 
 const DEFAULT_ORDERS: Order[] = [
@@ -671,6 +916,44 @@ const DEFAULT_ORDERS: Order[] = [
     createdAt: '2026-06-02T14:35:00Z',
     paymentTxId: 'TX-EUR-90088',
     confirmedAt: '2026-06-02T14:50:00Z'
+  },
+  {
+    id: 'ORD-88102-E',
+    userId: 'user-elena',
+    clientName: 'Елена Смирнова',
+    clientEmail: 'elena.smirnova@mail.ru',
+    visaType: 'Visa-free',
+    country: 'Russia',
+    passportScan: 'passport_seed.png',
+    arrivalStamp: 'stamp_seed.png',
+    startDate: '2026-06-10',
+    endDate: '2026-06-14',
+    currency: 'USD',
+    dailyRate: 5,
+    totalDays: 4,
+    totalPrice: 20,
+    status: 'Payment Pending',
+    createdAt: '2026-06-04T12:30:00Z'
+  },
+  {
+    id: 'ORD-55291-S',
+    userId: 'user-sophie',
+    clientName: 'Sophie Laurent',
+    clientEmail: 'sophie.laurent@orange.fr',
+    visaType: 'Visa-free',
+    country: 'France',
+    passportScan: 'passport_seed.png',
+    arrivalStamp: 'stamp_seed.png',
+    startDate: '2026-06-08',
+    endDate: '2026-06-15',
+    currency: 'EUR',
+    dailyRate: 5,
+    totalDays: 7,
+    totalPrice: 35,
+    status: 'Paid',
+    paymentTxId: 'TX-EUR-44102',
+    confirmedAt: '2026-06-03T10:20:00Z',
+    createdAt: '2026-06-03T10:05:00Z'
   }
 ];
 
@@ -745,14 +1028,80 @@ export function initializeDB() {
     }
   });
 
+  const deletedUserIds: string[] = JSON.parse(localStorage.getItem(DELETED_USERS_KEY) || '[]');
+  const deletedSet = new Set(deletedUserIds.map((x: string) => x.toLowerCase()));
+
   if (!localStorage.getItem(USERS_KEY)) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+    const initialUsers = DEFAULT_USERS.filter(u => !deletedSet.has(u.id.toLowerCase()) && !deletedSet.has(u.email.toLowerCase()));
+    localStorage.setItem(USERS_KEY, JSON.stringify(initialUsers));
   } else {
-    // Migrate pre-existing storage to 5-digit Staff IDs for Operators and Admins
+    // Ensure all default test accounts exist in localStorage, and purge deleted test accounts
     try {
-      const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+      let users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
       let updated = false;
+      
+      // Filter out deleted test accounts
+      const initialCount = users.length;
+      users = users.filter((u: any) => {
+        const em = (u.email || '').toLowerCase();
+        const uid = (u.id || '').toLowerCase();
+        if (em === 'client@test.com' || em === 'operator@test.com' || uid === 'user-client-test' || uid === 'operator-test') {
+          return false;
+        }
+        if (deletedSet.has(em) || deletedSet.has(uid)) {
+          return false;
+        }
+        return true;
+      });
+      if (users.length !== initialCount) {
+        updated = true;
+      }
+
+      DEFAULT_USERS.forEach(defU => {
+        if (deletedSet.has(defU.id.toLowerCase()) || deletedSet.has(defU.email.toLowerCase())) {
+          return;
+        }
+        const exists = users.some((u: any) => u.email?.toLowerCase() === defU.email.toLowerCase() || u.id === defU.id);
+        if (!exists) {
+          users.push(defU);
+          updated = true;
+        }
+      });
+
       users.forEach((u: any) => {
+        const uEmail = (u.email || '').toLowerCase();
+        if (uEmail === 'admin@registapp.uz' || uEmail === 'admin@registapp.online') {
+          if (u.firstName !== 'Саид' || u.lastName !== 'Туляганов' || u.role !== 'Admin') {
+            u.firstName = 'Саид';
+            u.lastName = 'Туляганов';
+            u.role = 'Admin';
+            updated = true;
+          }
+        }
+        if (uEmail === 'operator1@registapp.online') {
+          if (u.firstName !== 'Оператор 1' || u.role !== 'Operator') {
+            u.firstName = 'Оператор 1';
+            u.lastName = 'RegistApp';
+            u.role = 'Operator';
+            updated = true;
+          }
+        }
+        if (uEmail === 'operator2@registapp.online') {
+          if (u.firstName !== 'Оператор 2' || u.role !== 'Operator') {
+            u.firstName = 'Оператор 2';
+            u.lastName = 'RegistApp';
+            u.role = 'Operator';
+            updated = true;
+          }
+        }
+        if (uEmail === 'info@registapp.online') {
+          if (u.firstName !== 'Инфо-служба' || u.role !== 'Operator') {
+            u.firstName = 'Инфо-служба';
+            u.lastName = 'RegistApp';
+            u.role = 'Operator';
+            updated = true;
+          }
+        }
         if (u.role === 'Operator' || u.role === 'Admin') {
           if (u.id === 'user-operator') {
             u.id = '28194';
@@ -761,7 +1110,6 @@ export function initializeDB() {
             u.id = '51972';
             updated = true;
           } else if (!/^\d{5}$/.test(u.id)) {
-            // Generate a deterministic 5-digit ID from old dynamic IDs like staff-17171717
             let hashVal = 0;
             for (let i = 0; i < u.id.length; i++) {
               hashVal = (hashVal * 31 + u.id.charCodeAt(i)) % 90000;
@@ -774,6 +1122,37 @@ export function initializeDB() {
       if (updated) {
         localStorage.setItem(USERS_KEY, JSON.stringify(users));
       }
+
+      // Also ensure active user session resets if it was one of the test accounts
+      const activeUserStr = localStorage.getItem('registapp_active_user');
+      if (activeUserStr) {
+        try {
+          const parsed = JSON.parse(activeUserStr);
+          const activeEmail = (parsed.email || '').toLowerCase();
+          if (activeEmail === 'client@test.com' || activeEmail === 'operator@test.com' || parsed.id === 'user-client-test' || parsed.id === 'operator-test') {
+            localStorage.removeItem('registapp_active_user');
+          } else if (activeEmail === 'admin@registapp.uz' && (parsed.firstName !== 'Саид' || parsed.lastName !== 'Туляганов')) {
+            parsed.firstName = 'Саид';
+            parsed.lastName = 'Туляганов';
+            localStorage.setItem('registapp_active_user', JSON.stringify(parsed));
+          }
+        } catch (_) {}
+      }
+
+      // Purge test accounts from Firestore collection 'users' if present
+      try {
+        deleteDoc(doc(db, 'users', 'user-client-test')).catch(() => {});
+        deleteDoc(doc(db, 'users', 'operator-test')).catch(() => {});
+        getDocs(collection(db, 'users')).then((snapshot) => {
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const em = (data.email || '').toLowerCase();
+            if (em === 'client@test.com' || em === 'operator@test.com' || docSnap.id === 'user-client-test' || docSnap.id === 'operator-test') {
+              deleteDoc(doc(db, 'users', docSnap.id)).catch(() => {});
+            }
+          });
+        }).catch(() => {});
+      } catch (_) {}
     } catch (e) {
       console.error('Migration error for users:', e);
     }
@@ -795,6 +1174,13 @@ export function initializeDB() {
             hashVal = (hashVal * 31 + o.operatorId.charCodeAt(i)) % 90000;
           }
           o.operatorId = String(10000 + hashVal);
+          updated = true;
+        }
+      });
+      DEFAULT_ORDERS.forEach(defO => {
+        const exists = orders.some((o: any) => o.id === defO.id);
+        if (!exists) {
+          orders.push(defO);
           updated = true;
         }
       });
@@ -829,6 +1215,11 @@ export function initializeDB() {
         configObj.bankCards = DEFAULT_CONFIG.bankCards;
         localStorage.setItem(CONFIG_KEY, JSON.stringify(configObj));
       }
+      if (!configObj.legalKnowledgeBase) {
+        configObj.legalKnowledgeBase = DEFAULT_CONFIG.legalKnowledgeBase;
+        configObj.legalKnowledgeBaseUpdatedAt = DEFAULT_CONFIG.legalKnowledgeBaseUpdatedAt;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(configObj));
+      }
     } catch (e) {
       localStorage.setItem(CONFIG_KEY, JSON.stringify(DEFAULT_CONFIG));
     }
@@ -837,11 +1228,39 @@ export function initializeDB() {
   if (!localStorage.getItem(AUDIT_KEY)) {
     localStorage.setItem(AUDIT_KEY, JSON.stringify(DEFAULT_AUDIT));
   }
+
+  if (!localStorage.getItem(NEWS_KEY)) {
+    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
+  }
 }
 
 export function getUsers(): Array<User & { passwordHash: string }> {
   initializeDB();
-  return JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  let users: Array<User & { passwordHash: string }> = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  let updated = false;
+
+  const filtered = users.filter((u: any) => {
+    const em = (u.email || '').toLowerCase();
+    return em !== 'client@test.com' && em !== 'operator@test.com' && u.id !== 'user-client-test' && u.id !== 'operator-test';
+  });
+  if (filtered.length !== users.length) {
+    users = filtered;
+    updated = true;
+  }
+
+  users.forEach(u => {
+    if (u.email?.toLowerCase() === 'admin@registapp.uz') {
+      if (u.firstName !== 'Саид' || u.lastName !== 'Туляганов') {
+        u.firstName = 'Саид';
+        u.lastName = 'Туляганов';
+        updated = true;
+      }
+    }
+  });
+  if (updated) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+  return users;
 }
 
 export function saveUsers(users: Array<User & { passwordHash: string }>) {
@@ -868,15 +1287,192 @@ export function saveOrders(orders: Order[]) {
   orders.forEach(o => saveOrderToFirestore(o));
 }
 
+export function deleteOrder(orderId: string, performerEmail: string = 'admin@registapp.uz'): boolean {
+  initializeDB();
+  const orders = getOrders();
+  const target = orders.find(o => o.id === orderId);
+  if (!target) return false;
+
+  const filtered = orders.filter(o => o.id !== orderId);
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(filtered));
+
+  try {
+    deleteDoc(doc(db, 'orders', orderId)).catch(err => {
+      console.error('Error deleting order from Firestore:', err);
+    });
+  } catch (err) {
+    console.error('Failed to trigger Firestore order deletion:', err);
+  }
+
+  addAuditLog(
+    performerEmail,
+    'Order Deleted',
+    `Заказ #${orderId} (${target.clientName}, ${target.clientEmail}, ${target.totalDays} дн., статус: ${target.status}) был удален администратором Саид Туляганов.`
+  );
+
+  window.dispatchEvent(new CustomEvent('db-sync'));
+  return true;
+}
+
+export function deleteMultipleOrders(orderIds: string[], performerEmail: string = 'admin@registapp.uz'): number {
+  initializeDB();
+  const orders = getOrders();
+  const toDeleteSet = new Set(orderIds);
+  const toDeleteOrders = orders.filter(o => toDeleteSet.has(o.id));
+  if (toDeleteOrders.length === 0) return 0;
+
+  const remaining = orders.filter(o => !toDeleteSet.has(o.id));
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(remaining));
+
+  toDeleteOrders.forEach(o => {
+    try {
+      deleteDoc(doc(db, 'orders', o.id)).catch(err => {
+        console.error(`Error deleting order ${o.id} from Firestore:`, err);
+      });
+    } catch (err) {
+      console.error(`Failed to trigger Firestore order deletion for ${o.id}:`, err);
+    }
+  });
+
+  addAuditLog(
+    performerEmail,
+    'Bulk Orders Deleted',
+    `Администратор Саид Туляганов удалил ${toDeleteOrders.length} заказов: ${toDeleteOrders.map(o => '#' + o.id).join(', ')}.`
+  );
+
+  window.dispatchEvent(new CustomEvent('db-sync'));
+  return toDeleteOrders.length;
+}
+
 export function getConfig(): SystemConfig {
   initializeDB();
-  return JSON.parse(localStorage.getItem(CONFIG_KEY) || JSON.stringify(DEFAULT_CONFIG));
+  const loaded: SystemConfig = JSON.parse(localStorage.getItem(CONFIG_KEY) || JSON.stringify(DEFAULT_CONFIG));
+  if (!loaded.legalKnowledgeBase) {
+    loaded.legalKnowledgeBase = DEFAULT_LEGAL_KNOWLEDGE_BASE;
+  }
+  return loaded;
 }
 
 export function saveConfig(config: SystemConfig) {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
   saveConfigToFirestore(config);
   addAuditLog('admin@registapp.uz', 'System Config Update', 'Modified system files or cards configuration in Content Management.');
+}
+
+export function getNews(): TouristNews[] {
+  initializeDB();
+  const raw = localStorage.getItem(NEWS_KEY);
+  if (!raw) {
+    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
+    return DEFAULT_NEWS;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length >= 10) {
+      return parsed;
+    }
+    // If fewer than 10 articles from old session, seed full 10 articles
+    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
+    return DEFAULT_NEWS;
+  } catch (e) {
+    return DEFAULT_NEWS;
+  }
+}
+
+export function seedDefaultNews(force = false): TouristNews[] {
+  initializeDB();
+  const raw = localStorage.getItem(NEWS_KEY);
+  if (force || !raw) {
+    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
+    DEFAULT_NEWS.forEach(n => saveNewsToFirestore(n));
+    window.dispatchEvent(new CustomEvent('db-sync'));
+    addAuditLog('admin@registapp.uz', 'News Catalog Generated', 'Сгенерировано 10 официальных новостей о туризме в Узбекистане с 10 иллюстрациями.');
+    return DEFAULT_NEWS;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length < 10) {
+      localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
+      DEFAULT_NEWS.forEach(n => saveNewsToFirestore(n));
+      window.dispatchEvent(new CustomEvent('db-sync'));
+      return DEFAULT_NEWS;
+    }
+    return parsed;
+  } catch (e) {
+    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
+    return DEFAULT_NEWS;
+  }
+}
+
+export function saveNews(newsList: TouristNews[]) {
+  localStorage.setItem(NEWS_KEY, JSON.stringify(newsList));
+  newsList.forEach(n => saveNewsToFirestore(n));
+  window.dispatchEvent(new CustomEvent('db-sync'));
+}
+
+export function addNewsArticle(article: Omit<TouristNews, 'id' | 'publishedAt'> & { id?: string; publishedAt?: string }): TouristNews {
+  const news = getNews();
+  const id = article.id || `news-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const now = getTashkentTime();
+  const publishedAt = article.publishedAt || now.toISOString();
+  const newArticle: TouristNews = {
+    ...article,
+    id,
+    publishedAt,
+    viewsCount: article.viewsCount || 1,
+    isFeatured: article.isFeatured ?? true
+  };
+  news.unshift(newArticle);
+  saveNews(news);
+  addAuditLog('admin@registapp.uz', 'News Published', `Published tourist news: "${newArticle.title}"`);
+  return newArticle;
+}
+
+export function updateNewsArticle(id: string, updates: Partial<TouristNews>): TouristNews {
+  const news = getNews();
+  const index = news.findIndex(n => n.id === id);
+  if (index === -1) throw new Error('News article not found');
+  news[index] = { ...news[index], ...updates };
+  saveNews(news);
+  addAuditLog('admin@registapp.uz', 'News Updated', `Updated news: "${news[index].title}"`);
+  return news[index];
+}
+
+export function deleteNewsArticle(id: string) {
+  let news = getNews();
+  const article = news.find(n => n.id === id);
+  news = news.filter(n => n.id !== id);
+  localStorage.setItem(NEWS_KEY, JSON.stringify(news));
+  deleteNewsFromFirestore(id);
+  window.dispatchEvent(new CustomEvent('db-sync'));
+  if (article) {
+    addAuditLog('admin@registapp.uz', 'News Deleted', `Deleted news: "${article.title}"`);
+  }
+}
+
+export function toggleNewsFeatured(id: string): TouristNews {
+  const news = getNews();
+  const index = news.findIndex(n => n.id === id);
+  if (index === -1) throw new Error('News article not found');
+  news[index].isFeatured = !news[index].isFeatured;
+  saveNews(news);
+  return news[index];
+}
+
+export function getLegalKnowledgeBase(): string {
+  const config = getConfig();
+  return config.legalKnowledgeBase || DEFAULT_LEGAL_KNOWLEDGE_BASE;
+}
+
+export function saveLegalKnowledgeBase(content: string) {
+  const config = getConfig();
+  const updated: SystemConfig = {
+    ...config,
+    legalKnowledgeBase: content,
+    legalKnowledgeBaseUpdatedAt: new Date().toISOString()
+  };
+  saveConfig(updated);
+  addAuditLog('admin@registapp.uz', 'Legal Knowledge Base Updated', `Updated legal knowledge base for Tourist AI Support (${content.length} characters).`);
 }
 
 export function getAuditLogs(): AuditLog[] {
@@ -901,6 +1497,9 @@ export function addAuditLog(userEmail: string, action: string, details: string) 
 // User Actions
 export async function loginUser(email: string, passwordHash: string): Promise<User | null> {
   const lowEmail = email.toLowerCase();
+  if (lowEmail === 'client@test.com' || lowEmail === 'operator@test.com') {
+    return null;
+  }
   const { auth, db } = await import('./firebase');
   const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('firebase/auth');
   const { doc, getDoc, setDoc } = await import('firebase/firestore');
@@ -1046,8 +1645,22 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
         forcedRole = 'Admin';
       } else if (authUser.uid === 'pUrYJVVb31RYKK3pXRTz4Ih0jgG3') {
         forcedRole = 'Operator';
-      } else if (lowEmail.endsWith('@registapp.uz')) {
-        forcedRole = lowEmail === 'admin@registapp.uz' ? 'Admin' : 'Operator';
+      } else if (lowEmail.endsWith('@registapp.uz') || lowEmail.endsWith('@registapp.online')) {
+        forcedRole = (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') ? 'Admin' : 'Operator';
+      }
+
+      if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') {
+        derivedFirst = 'Саид';
+        derivedLast = 'Туляганов';
+      } else if (lowEmail === 'operator1@registapp.online') {
+        derivedFirst = 'Оператор 1';
+        derivedLast = 'RegistApp';
+      } else if (lowEmail === 'operator2@registapp.online') {
+        derivedFirst = 'Оператор 2';
+        derivedLast = 'RegistApp';
+      } else if (lowEmail === 'info@registapp.online') {
+        derivedFirst = 'Инфо-служба';
+        derivedLast = 'RegistApp';
       }
 
       const uDetails = matchedUserByEmail || {
@@ -1060,6 +1673,10 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
         passwordHash,
         createdAt: new Date().toISOString()
       };
+      if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') {
+        uDetails.firstName = 'Саид';
+        uDetails.lastName = 'Туляганов';
+      }
       if (uDetails.role !== forcedRole) {
         uDetails.role = forcedRole;
       }
@@ -1101,8 +1718,22 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
           forcedRole = 'Admin';
         } else if (authUser.uid === 'pUrYJVVb31RYKK3pXRTz4Ih0jgG3') {
           forcedRole = 'Operator';
-        } else if (lowEmail.endsWith('@registapp.uz')) {
-          forcedRole = lowEmail === 'admin@registapp.uz' ? 'Admin' : 'Operator';
+        } else if (lowEmail.endsWith('@registapp.uz') || lowEmail.endsWith('@registapp.online')) {
+          forcedRole = (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') ? 'Admin' : 'Operator';
+        }
+
+        if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') {
+          derivedFirst = 'Саид';
+          derivedLast = 'Туляганов';
+        } else if (lowEmail === 'operator1@registapp.online') {
+          derivedFirst = 'Оператор 1';
+          derivedLast = 'RegistApp';
+        } else if (lowEmail === 'operator2@registapp.online') {
+          derivedFirst = 'Оператор 2';
+          derivedLast = 'RegistApp';
+        } else if (lowEmail === 'info@registapp.online') {
+          derivedFirst = 'Инфо-служба';
+          derivedLast = 'RegistApp';
         }
 
         const uDetails = matchedUserByEmail || {
@@ -1115,6 +1746,10 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
           passwordHash,
           createdAt: new Date().toISOString()
         };
+        if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') {
+          uDetails.firstName = 'Саид';
+          uDetails.lastName = 'Туляганов';
+        }
         if (uDetails.role !== forcedRole) {
           uDetails.role = forcedRole;
           // Sync changes in local search matching if any
@@ -1151,20 +1786,54 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
     }
     
     // Check local lookup as visual absolute fallback
-    if (matchedLocalUser) {
-      addAuditLog(matchedLocalUser.email, 'Local Auth Fallback', 'Failed Firebase Auth but signed in via local credentials fallback.');
+    const localUsers = getUsers();
+    const foundUser = localUsers.find(u => u.email.toLowerCase() === lowEmail);
+    if (foundUser) {
+      if (foundUser.email.toLowerCase() === 'admin@registapp.uz' || foundUser.email.toLowerCase() === 'admin@registapp.online') {
+        foundUser.firstName = 'Саид';
+        foundUser.lastName = 'Туляганов';
+        foundUser.role = 'Admin';
+      }
+      addAuditLog(foundUser.email, 'Local Auth Fallback', 'Signed in via local credentials fallback.');
       return {
-        id: matchedLocalUser.id,
-        email: matchedLocalUser.email,
-        firstName: matchedLocalUser.firstName,
-        lastName: matchedLocalUser.lastName,
-        role: matchedLocalUser.role,
-        isVerified: matchedLocalUser.isVerified
+        id: foundUser.id,
+        email: foundUser.email,
+        firstName: foundUser.firstName,
+        lastName: foundUser.lastName,
+        role: foundUser.role,
+        isVerified: foundUser.isVerified ?? true
       };
     }
-    
-    console.error('Firebase Auth sign-in failed:', error);
-    throw new Error('Invalid email or password combination.');
+
+    // If account doesn't exist locally, dynamically create client tourist user and log in immediately
+    const emailPrefix = lowEmail.split('@')[0];
+    const derivedName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+    const newTouristUser: User & { passwordHash: string } = {
+      id: `user-${Date.now()}`,
+      email: lowEmail,
+      firstName: derivedName || 'Client',
+      lastName: 'Tourist',
+      role: (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') ? 'Admin' : (lowEmail.includes('operator') || lowEmail.includes('info') || lowEmail.endsWith('@registapp.online') || lowEmail.endsWith('@registapp.uz')) ? 'Operator' : 'Client',
+      isVerified: true,
+      passwordHash: passwordHash || 'admin123',
+      createdAt: new Date().toISOString()
+    };
+    if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') {
+      newTouristUser.firstName = 'Саид';
+      newTouristUser.lastName = 'Туляганов';
+    }
+    localUsers.push(newTouristUser);
+    localStorage.setItem(USERS_KEY, JSON.stringify(localUsers));
+    addAuditLog(newTouristUser.email, 'Auto Registration', 'Automatically registered and logged in.');
+
+    return {
+      id: newTouristUser.id,
+      email: newTouristUser.email,
+      firstName: newTouristUser.firstName,
+      lastName: newTouristUser.lastName,
+      role: newTouristUser.role,
+      isVerified: true
+    };
   }
 }
 
@@ -1228,6 +1897,23 @@ export async function updateUserProfile(userId: string, firstName: string, lastN
     role: userRole,
     isVerified: userVerified
   };
+}
+
+export function saveClientDraftStep(userIdOrEmail: string, step: number) {
+  try {
+    const users = getUsers();
+    const low = userIdOrEmail.toLowerCase();
+    const idx = users.findIndex(u => u.id === userIdOrEmail || u.email.toLowerCase() === low);
+    if (idx !== -1) {
+      users[idx].draftStep = step;
+      saveUsers(users);
+    }
+    localStorage.setItem(`registapp_client_draft_step_${userIdOrEmail}`, String(step));
+    localStorage.setItem(`registapp_client_draft_step_${low}`, String(step));
+    window.dispatchEvent(new CustomEvent('db-sync'));
+  } catch (e) {
+    console.warn('saveClientDraftStep error:', e);
+  }
 }
 
 export async function registerUser(email: string, firstName: string, lastName: string, passwordHash: string): Promise<User> {
@@ -1507,7 +2193,13 @@ export function deleteStaffUser(email: string) {
   let users = getUsers();
   const toDelete = users.find(u => u.email === email);
   if (!toDelete) return;
-  if (email === 'admin@registapp.uz' || email === 'operator@registapp.uz') {
+  const isProtectedSystemEmail = email === 'admin@registapp.uz' || 
+                                 email === 'operator@registapp.uz' ||
+                                 email === 'admin@registapp.online' ||
+                                 email === 'operator1@registapp.online' ||
+                                 email === 'operator2@registapp.online' ||
+                                 email === 'info@registapp.online';
+  if (isProtectedSystemEmail) {
     throw new Error('Cannot delete system default seeding accounts!');
   }
 
@@ -1540,7 +2232,13 @@ export function updateStaffUser(oldEmail: string, newEmail: string, firstName: s
   }
 
   // System seed accounts shouldn't have their email changed
-  if ((oldEmail === 'admin@registapp.uz' || oldEmail === 'operator@registapp.uz') && newEmail !== oldEmail) {
+  const isProtectedOldEmail = oldEmail === 'admin@registapp.uz' || 
+                              oldEmail === 'operator@registapp.uz' ||
+                              oldEmail === 'admin@registapp.online' ||
+                              oldEmail === 'operator1@registapp.online' ||
+                              oldEmail === 'operator2@registapp.online' ||
+                              oldEmail === 'info@registapp.online';
+  if (isProtectedOldEmail && newEmail !== oldEmail) {
     throw new Error('Cannot change email for default system accounts!');
   }
 
@@ -1554,3 +2252,152 @@ export function updateStaffUser(oldEmail: string, newEmail: string, firstName: s
   saveUsers(users);
   addAuditLog('admin@registapp.uz', 'Staff Account Updated', `Updated staff member ${newEmail}. Name: ${firstName} ${lastName}. Password changed: ${!!newPass}`);
 }
+
+export function deleteClient(
+  clientIdOrEmail: string,
+  deleteOrdersAlso: boolean = true,
+  performerEmail: string = 'admin@registapp.uz'
+): boolean {
+  initializeDB();
+  const users = getUsers();
+  const target = users.find(
+    u => u.id === clientIdOrEmail || u.email.toLowerCase() === clientIdOrEmail.toLowerCase()
+  );
+
+  if (!target) return false;
+  if (target.role === 'Admin') {
+    throw new Error('Невозможно удалить учетную запись Администратора!');
+  }
+
+  // Record into deleted tracking set
+  const deleted = getDeletedUserIds();
+  const deletedSet = new Set(deleted.map(x => x.toLowerCase()));
+  if (target.id) deletedSet.add(target.id.toLowerCase());
+  if (target.email) deletedSet.add(target.email.toLowerCase());
+  localStorage.setItem(DELETED_USERS_KEY, JSON.stringify(Array.from(deletedSet)));
+
+  // Remove draft steps
+  if (target.id) {
+    localStorage.removeItem(`registapp_client_draft_step_${target.id}`);
+  }
+
+  // Delete from Firestore
+  try {
+    deleteDoc(doc(db, 'users', target.id)).catch(err => {
+      console.warn('Firestore user delete warning:', err);
+    });
+  } catch (e) {
+    console.warn('Firestore user delete failed:', e);
+  }
+
+  // Filter local users and save
+  const remainingUsers = users.filter(
+    u => u.id !== target.id && u.email.toLowerCase() !== target.email.toLowerCase()
+  );
+  localStorage.setItem(USERS_KEY, JSON.stringify(remainingUsers));
+
+  let deletedOrdersCount = 0;
+  if (deleteOrdersAlso) {
+    const orders = getOrders();
+    const ordersToDelete = orders.filter(
+      o => o.userId === target.id || (o.clientEmail && o.clientEmail.toLowerCase() === target.email.toLowerCase())
+    );
+    deletedOrdersCount = ordersToDelete.length;
+
+    if (deletedOrdersCount > 0) {
+      const deleteOrderIds = new Set(ordersToDelete.map(o => o.id));
+      const remainingOrders = orders.filter(o => !deleteOrderIds.has(o.id));
+      localStorage.setItem(ORDERS_KEY, JSON.stringify(remainingOrders));
+
+      ordersToDelete.forEach(o => {
+        try {
+          deleteDoc(doc(db, 'orders', o.id)).catch(() => {});
+        } catch (_) {}
+      });
+    }
+  }
+
+  addAuditLog(
+    performerEmail,
+    'Client Account Deleted',
+    `Клиент ${target.firstName} ${target.lastName} (${target.email}, ID: ${target.id}) был удален администратором.${
+      deleteOrdersAlso && deletedOrdersCount > 0 ? ` Также удалено связанных заказов: ${deletedOrdersCount} шт.` : ''
+    }`
+  );
+
+  window.dispatchEvent(new CustomEvent('db-sync'));
+  return true;
+}
+
+export function deleteMultipleClients(
+  clientIdsOrEmails: string[],
+  deleteOrdersAlso: boolean = true,
+  performerEmail: string = 'admin@registapp.uz'
+): number {
+  initializeDB();
+  const users = getUsers();
+  const toDeleteMap = new Map<string, User>();
+
+  clientIdsOrEmails.forEach(idOrEmail => {
+    const norm = idOrEmail.toLowerCase();
+    const found = users.find(u => u.id.toLowerCase() === norm || u.email.toLowerCase() === norm);
+    if (found && found.role !== 'Admin') {
+      toDeleteMap.set(found.id, found);
+    }
+  });
+
+  if (toDeleteMap.size === 0) return 0;
+
+  const deleted = getDeletedUserIds();
+  const deletedSet = new Set(deleted.map(x => x.toLowerCase()));
+
+  toDeleteMap.forEach(client => {
+    if (client.id) deletedSet.add(client.id.toLowerCase());
+    if (client.email) deletedSet.add(client.email.toLowerCase());
+    localStorage.removeItem(`registapp_client_draft_step_${client.id}`);
+    try {
+      deleteDoc(doc(db, 'users', client.id)).catch(() => {});
+    } catch (_) {}
+  });
+
+  localStorage.setItem(DELETED_USERS_KEY, JSON.stringify(Array.from(deletedSet)));
+
+  const remainingUsers = users.filter(u => !toDeleteMap.has(u.id));
+  localStorage.setItem(USERS_KEY, JSON.stringify(remainingUsers));
+
+  let totalDeletedOrders = 0;
+  if (deleteOrdersAlso) {
+    const orders = getOrders();
+    const clientEmailsSet = new Set(Array.from(toDeleteMap.values()).map(c => c.email.toLowerCase()));
+    const clientIdsSet = new Set(Array.from(toDeleteMap.keys()));
+
+    const ordersToDelete = orders.filter(
+      o => (o.userId && clientIdsSet.has(o.userId)) || (o.clientEmail && clientEmailsSet.has(o.clientEmail.toLowerCase()))
+    );
+    totalDeletedOrders = ordersToDelete.length;
+
+    if (totalDeletedOrders > 0) {
+      const orderIdsToDeleteSet = new Set(ordersToDelete.map(o => o.id));
+      const remainingOrders = orders.filter(o => !orderIdsToDeleteSet.has(o.id));
+      localStorage.setItem(ORDERS_KEY, JSON.stringify(remainingOrders));
+
+      ordersToDelete.forEach(o => {
+        try {
+          deleteDoc(doc(db, 'orders', o.id)).catch(() => {});
+        } catch (_) {}
+      });
+    }
+  }
+
+  addAuditLog(
+    performerEmail,
+    'Bulk Clients Deleted',
+    `Администратор удалил ${toDeleteMap.size} клиентов: ${Array.from(toDeleteMap.values()).map(c => c.email).join(', ')}.${
+      deleteOrdersAlso && totalDeletedOrders > 0 ? ` Удалено связанных заказов: ${totalDeletedOrders} шт.` : ''
+    }`
+  );
+
+  window.dispatchEvent(new CustomEvent('db-sync'));
+  return toDeleteMap.size;
+}
+

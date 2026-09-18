@@ -1,15 +1,50 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Send, X, Bot, User, Sparkles } from 'lucide-react';
-import { ChatMessage, LanguageCode } from '../types';
-import { getConfig } from '../db';
+import { MessageSquare, Send, X, Bot, User, Sparkles, Scale, PhoneCall, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { ChatMessage, LanguageCode, UserRole } from '../types';
+import { getConfig, getLegalKnowledgeBase } from '../db';
 import { translations } from '../translations';
 
 interface SupportChatProps {
   currentLanguage: LanguageCode;
+  embedded?: boolean;
+  userRole?: UserRole;
+  defaultOpen?: boolean;
 }
 
-export default function SupportChat({ currentLanguage }: SupportChatProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function SupportChat({ 
+  currentLanguage, 
+  embedded = false, 
+  userRole, 
+  defaultOpen 
+}: SupportChatProps) {
+  const isStaff = userRole === 'Operator' || userRole === 'Admin';
+  // AI consultant is collapsed by default and never forced open unless explicitly requested
+  const [isOpen, setIsOpen] = useState(() => defaultOpen === true);
+
+  // Disclaimer banner shown before the first message in each new session
+  // Closed on click, but re-shown in each new session (tracked via sessionStorage)
+  const [showSessionDisclaimer, setShowSessionDisclaimer] = useState<boolean>(() => {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        return window.sessionStorage.getItem('registapp_chat_disclaimer_dismissed') !== 'true';
+      }
+    } catch {
+      // Fallback
+    }
+    return true;
+  });
+
+  const handleDismissDisclaimer = () => {
+    setShowSessionDisclaimer(false);
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem('registapp_chat_disclaimer_dismissed', 'true');
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -17,12 +52,65 @@ export default function SupportChat({ currentLanguage }: SupportChatProps) {
 
   const t = (key: string) => translations[currentLanguage]?.[key] || key;
 
-  // Initialize or update with greeting based on language
+  // Ensure collapsed state for staff when role or defaultOpen changes
+  useEffect(() => {
+    if (defaultOpen !== undefined) {
+      setIsOpen(defaultOpen);
+    } else if (isStaff) {
+      setIsOpen(false);
+    }
+  }, [userRole, defaultOpen, isStaff]);
+
+  const handleSendMessageRef = useRef<(textToSend?: string) => Promise<void>>(async () => {});
+
+  // Listen to external triggers to open support chat (with optional pre-set query)
+  useEffect(() => {
+    const handleOpen = (e?: Event) => {
+      setIsOpen(true);
+      const customEvt = e as CustomEvent<{ query?: string }>;
+      if (customEvt?.detail?.query) {
+        setTimeout(() => {
+          handleSendMessageRef.current(customEvt.detail.query);
+        }, 150);
+      }
+    };
+    window.addEventListener('open-support-chat', handleOpen);
+    return () => window.removeEventListener('open-support-chat', handleOpen);
+  }, []);
+
+  // Quick prompt topic pills for the visitor
+  const quickPills = currentLanguage === 'ru'
+    ? [
+        { label: '⏱️ Срок 3 рабочих дней', query: 'Как исчисляется срок 3 рабочих дней для регистрации в Узбекистане?' },
+        { label: '📄 Какие документы нужны?', query: 'Какие документы нужны для оформления туристической регистрации?' },
+        { label: '💰 Тарифы и способы оплаты', query: 'Какова стоимость регистрации в сутки и в каких валютах можно оплатить?' },
+        { label: '⚖️ Штрафы по ст. 224 КоАП', query: 'Какие штрафы предусмотрены за просрочку регистрации по ст. 224 КоАП РУз?' },
+        { label: '🏛️ Система e-mehmon и QR-код', query: 'Что такое система e-mehmon и имеет ли электронный QR-код юридическую силу?' },
+        { label: '🏕️ Палатки, кемпинг и юрты', query: 'Как регистрироваться туристам при проживании в палатках или юртовых лагерях?' }
+      ]
+    : currentLanguage === 'fr'
+    ? [
+        { label: '⏱️ Règle des 3 jours ouvrables', query: 'Comment fonctionne la règle des 3 jours ouvrables pour l\'enregistrement ?' },
+        { label: '📄 Documents requis', query: 'Quels documents dois-je fournir pour mon enregistrement ?' },
+        { label: '💰 Tarifs et paiement', query: 'Quels sont les tarifs par jour et devises acceptées ?' },
+        { label: '⚖️ Amendes (Art. 224)', query: 'Quelles sont les sanctions en cas de dépassement sous l\'article 224 ?' },
+        { label: '🏛️ e-mehmon et QR code', query: 'Quelle est la valeur juridique de l\'attestation e-mehmon avec code QR ?' }
+      ]
+    : [
+        { label: '⏱️ 3-Business-Day Rule', query: 'How is the 3-business-day registration deadline calculated in Uzbekistan?' },
+        { label: '📄 Required Documents', query: 'What documents are required to register foreign tourists?' },
+        { label: '💰 Rates & Payment', query: 'What are the daily registration fees and accepted currencies?' },
+        { label: '⚖️ Fines under Art. 224', query: 'What are the penalties for overstaying under Article 224?' },
+        { label: '🏛️ e-mehmon QR Certificate', query: 'Does the electronic certificate from e-mehmon have full legal validity?' },
+        { label: '🏕️ Camping & Yurt Stays', query: 'How does registration work for independent travelers camping in tents?' }
+      ];
+
+  // Initialize or update with greeting based on language, asking visitor what interests them
   useEffect(() => {
     const greetings: Record<LanguageCode, string> = {
-      en: "Hello! I am your RegistApp AI assistant. How can I help you with your tourist registration in Uzbekistan today? Ask me about visas, passport uploads, prices, or deadlines!",
-      ru: "Здравствуйте! Я ИИ-помощник RegistApp. Как я могу помочь вам с регистрацией в Узбекистане? Спросите меня о визах, загрузке паспортов, ценах или сроках!",
-      fr: "Bonjour ! Je suis votre assistant IA RegistApp. Comment puis-je vous aider avec votre enregistrement touristique en Ouzbékistan aujourd'hui ? Posez-moi des questions sur les visas, les passeports, les prix ou les délais !"
+      ru: "Здравствуйте! Я официальный ИИ-консультант RegistApp по миграционному законодательству и туризму в Узбекистане.\n\nЧто именно вас интересует? Вы можете задать любой вопрос или нажать на интересующую тему ниже:",
+      en: "Hello! I am your official RegistApp AI assistant for tourist registration and immigration rules in Uzbekistan.\n\nWhat are you interested in today? Feel free to ask any question or select a quick topic below:",
+      fr: "Bonjour ! Je suis l'assistant IA officiel de RegistApp pour l'enregistrement et la réglementation en Ouzbékistan.\n\nQu'est-ce qui vous intéresse aujourd'hui ? Posez votre question ou sélectionnez un thème ci-dessous :"
     };
 
     setMessages(prev => {
@@ -53,54 +141,56 @@ export default function SupportChat({ currentLanguage }: SupportChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const generateAIResponse = (userText: string): string => {
+  const generateAIResponseFallback = (userText: string): string => {
     const text = userText.toLowerCase();
-    const config = getConfig();
-
-    // Context from config or default behavior
-    const promptInstructions = config.supportAiScript;
 
     // English responses
     if (currentLanguage === 'en') {
       if (text.includes('visa')) {
         return "Uzbekistan offers dual entries. If you choose 'Visa Country', you must upload (1) Passport Scan, (2) Arrival Border Stamp Scan, and (3) Visas page for verification. Registration rates are the same for all countries ($5 USD/EUR, 500 RUB or 70000 UZS daily).";
       }
-      if (text.includes('days') || text.includes('how long') || text.includes('period')) {
-        return "Mandatory registration must be purchased and processed within 3 business days of crossing the Uzbekistan border. Failing this triggers migration violations of Article 224.";
+      if (text.includes('day') || text.includes('period') || text.includes('how long') || text.includes('3 day') || text.includes('deadline')) {
+        return "📌 **Pursuant to Decree No. 433 of the Cabinet of Ministers of Uzbekistan**, mandatory registration must be completed within **3 business days** of crossing the border. Sundays and official holidays are excluded.";
       }
-      if (text.includes('fine') || text.includes('penalty') || text.includes('violation') || text.includes('law')) {
-        return "Overstaying your registration period triggers severe fines under Article 224 of the Administrative Code (from $50 to $100 equivalent). If an operator flags an infraction, you'll receive our Migration Law Violation Guide in your cabinet containing corrective actions.";
+      if (text.includes('fine') || text.includes('penalty') || text.includes('violation') || text.includes('law') || text.includes('224')) {
+        return "⚖️ Overstaying without registration constitutes an administrative violation under **Article 224 of the Administrative Code** (fines from 5 to 20 Base Calculated Units). Contact Tourist Police at **1173** if you need emergency assistance.";
       }
-      if (text.includes('pay') || text.includes('card') || text.includes('price') || text.includes('cost')) {
-        return "The daily processing rates are: USD $5/day, EUR €5/day, RUB 500/day, UZS 70,000/day. You can pay by transfer directly onto our matching currency card during checkout, then type your transaction reference to confirm.";
+      if (text.includes('pay') || text.includes('card') || text.includes('price') || text.includes('cost') || text.includes('rate')) {
+        return "💰 The daily registration rates are: USD $5/day, EUR €5/day, RUB 500/day, UZS 70,000/day. Payments are made via direct transfer to our matching bank card.";
       }
-      if (text.includes('how does') || text.includes('process') || text.includes('step')) {
-        return "It's easy! 1. Enter your country and upload documents. 2. Choose dates (arrival & departure). 3. Transfer the amount to the provided card. 4. Our Operator certifies your documents on e-mehmon and issues your official QR-coded PDF.";
+      if (text.includes('emehmon') || text.includes('e-mehmon') || text.includes('qr')) {
+        return "🏛️ e-Mehmon is the official registration system of Uzbekistan (emehmon.uz). The generated electronic PDF certificate with QR code has full legal validity at airport and border checkpoints.";
       }
-      if (text.includes('e-mehmon') || text.includes('emehmon') || text.includes('uzb')) {
-        return "e-Mehmon is the official registration system of Uzbekistan (https://emehmon.uz). RegistApp acts as your digital proxy to process, translate, format, and push validation data seamlessly, saving you foreign office queues.";
+      if (text.includes('different') || text.includes('hotel') || text.includes('apartment') || text.includes('flat') || text.includes('stay') || text.includes('situation')) {
+        return "ℹ️ **Guidelines for Uzbekistan Registration by Accommodation Type:**\n\n1. **Hotel, hostel, sanatorium**: Registered automatically by the staff upon check-in via e-mehmon. No service needed.\n2. **Rented apartment / private house / friends**: Must be registered by the host citizen or property owner via my.gov.uz or migration authorities.\n3. **Stay longer than 30 days**: Must register directly in-person with the district Migration Department (OVViOG / Police).\n4. **Independent tourists (tents, camper vans, vehicle overnights)**: This is registered through our RegistApp tourist service.\n\nIf you have a unique case (medical stay, business mission, transit), feel free to provide details and we will guide you!";
       }
-      return "Thank you for asking. Based on our AI Guidelines: Please make sure to upload clear scans of your passport bio page and arrival stamp. Registrations take approx. 30-60 minutes to process once payment is cleared by our operators.";
+      return "Thank you for asking! For foreign tourists, registration in Uzbekistan is required within 3 business days. Tourist Police Helpline: **1173**.";
     }
 
     // Russian responses
     if (currentLanguage === 'ru') {
+      if (text.includes('случай') || text.includes('друг') || text.includes('квартир') || text.includes('родствен') || text.includes('30') || text.includes('отель')) {
+        return "ℹ️ **Разъяснение по способам регистрации в Узбекистане:**\n\n1. **Отели, хостелы, санатории**: регистрацию проводит администрация объекта в день заезда (вам оформлять ничего не нужно, подтверждение выдает отель).\n2. **Квартира, частный дом, у знакомых**: регистрацию обязан оформить собственник жилья или принимающая сторона через my.gov.uz либо в органах внутренних дел.\n3. **Пребывание свыше 30 дней**: оформляется исключительно через районные подразделения миграции МВД (ОВВиОГ).\n4. **Палатка, автодом, транспорт для ночлега**: статус самостоятельного туриста. Это именно та услуга, которую предоставляет наш сервис RegistApp.\n\nЕсли у вас иной особый случай (лечение, длительная командировка, транзит), напишите подробности, и мы подскажем точный алгоритм!";
+      }
       if (text.includes('виз') || text.includes('виза')) {
-        return "Для стран с визовым режимом требуются 3 документа: скан паспорта, скан штампа въезда и скан самой визы в Узбекистан. Стоимость одинаковая для всех категорий.";
+        return "Для граждан визовых стран требуются 3 документа: скан разворота паспорта, скан въездного штампа и скан самой визы в Узбекистан. Тариф единый для всех категорий.";
       }
-      if (text.includes('дн') || text.includes('день') || text.includes('срок') || text.includes('когда')) {
-        return "Вы обязаны оформить регистрацию в течение 3 рабочих дней с момента пересечения границы. Воскресенье и праздники не учитываются в этот лимит.";
+      if (text.includes('дн') || text.includes('день') || text.includes('срок') || text.includes('когда') || text.includes('3 дня') || text.includes('три дня')) {
+        return "📌 Согласно **Постановлению Кабинета Министров РУз № 433**, иностранные граждане обязаны оформить регистрацию в течение **3 рабочих дней** со дня въезда в страну. Воскресенья и праздничные дни в этот срок не включаются.";
       }
-      if (text.includes('штраф') || text.includes('закон') || text.includes('наруш')) {
-        return "Нарушение сроков регистрации карается штрафом по статье 224 КоАП РУз (от 50 до 100 долларов). Оператор может выслать вам Памятку нарушителя с инструкциями по исправлению ситуации.";
+      if (text.includes('штраф') || text.includes('закон') || text.includes('наруш') || text.includes('224')) {
+        return "⚖️ Нарушение правил пребывания влечет административную ответственность по **статье 224 КоАП РУз** (штраф от 5 до 20 БРВ, либо административное выдворение). Горячая линия туристической полиции: **1173**.";
       }
-      if (text.includes('оплат') || text.includes('карт') || text.includes('цен') || text.includes('руб') || text.includes('сум')) {
-        return "Тарифы в сутки: 70 000 UZS, 500 RUB, 5 USD, 5 EUR. Перевод осуществляется вручную по реквизитам соответствующей карты на экране оплаты, после чего вносится ID квитанции.";
+      if (text.includes('оплат') || text.includes('карт') || text.includes('цен') || text.includes('руб') || text.includes('сум') || text.includes('тариф')) {
+        return "💰 Тарифы за оформление: 70 000 UZS / 500 RUB / 5 USD / 5 EUR за сутки. Оплата производится переводом на карту выбранной валюты с указанием номера квитанции.";
       }
-      if (text.includes('процесс') || text.includes('как')) {
-        return "Всё просто: 1. Выберите страну и загрузите сканы. 2. Укажите даты пребывания. 3. Оплатите на указанную карту. 4. Оператор обработает заявку на e-Mehmon и выдаст PDF с QR-кодом.";
+      if (text.includes('e-mehmon') || text.includes('emehmon') || text.includes('qr') || text.includes('кьюар')) {
+        return "🏛️ Система e-mehmon (emehmon.uz) — официальный государственный реестр. Электронный листок с QR-кодом имеет полную юридическую силу для пограничной службы и органов внутренних дел.";
       }
-      return "Спасибо за обращение. Пожалуйста, убедитесь, что загруженные сканы паспорта и штампа въезда имеют высокое разрешение. Обработка занимает от 30 до 60 минут после подтверждения оплаты.";
+      if (text.includes('палат') || text.includes('кемпинг') || text.includes('юрт')) {
+        return "🏕️ Самостоятельные туристы, путешествующие с палатками или в юртах, регистрируются со статусом «Свободный турист» с оплатой туристского сбора за каждый день пребывания.";
+      }
+      return "Спасибо за вопрос! Напоминаем, что регистрация оформляется в течение 3 рабочих дней со дня въезда. Единый номер туристической полиции: **1173**.";
     }
 
     // French responses
@@ -108,44 +198,59 @@ export default function SupportChat({ currentLanguage }: SupportChatProps) {
       if (text.includes('visa')) {
         return "L'Ouzbékistan propose des régimes avec et sans visa. Si vous sélectionnez 'Pays avec visa', vous devez télécharger votre passeport, tampon d'entrée et visa. Le tarif reste identique ($5/jour).";
       }
-      if (text.includes('jour') || text.includes('durée') || text.includes('delai') || text.includes('temps')) {
-        return "L'enregistrement obligatoire doit être demandé dans les 3 jours ouvrables suivant votre entrée sur le territoire ouzbek.";
+      if (text.includes('jour') || text.includes('durée') || text.includes('delai') || text.includes('temps') || text.includes('3')) {
+        return "📌 Selon le Décret n° 433, l'enregistrement obligatoire doit être effectué dans les **3 jours ouvrables** suivant l'entrée en Ouzbékistan.";
       }
-      if (text.includes('amende') || text.includes('loi') || text.includes('infraction')) {
-        return "Le non-respect de la règle des 3 jours entraîne de lourdes amendes (article 224 du code administratif, de 50$ à 100$). En cas de problème, notre opérateur vous transmettra un guide d'infraction civile.";
+      if (text.includes('amende') || text.includes('loi') || text.includes('infraction') || text.includes('224')) {
+        return "⚖️ Le non-respect du délai entraîne des amendes selon l'article 224 du code administratif. Numéro d'assistance de la police touristique : **1173**.";
       }
       if (text.includes('payer') || text.includes('prix') || text.includes('carte') || text.includes('cout')) {
-        return "Le tarif journalier est de : 5 USD, 5 EUR, 500 RUB ou 70 000 UZS. Vous devez effectuer un virement sur la carte bancaire affichée puis confirmer en fournissant la référence de transaction.";
+        return "💰 Le tarif journalier est de : 5 USD, 5 EUR, 500 RUB ou 70 000 UZS par jour. Paiement par virement sur notre compte de paiement.";
       }
-      return "Je vous remercie pour votre question. Veillez à ce que les photos de votre passeport et de votre tampon d'entrée soient bien nettes. Le délai de traitement varie de 30 à 60 minutes après confirmation de paiement.";
+      return "Merci pour votre message ! L'enregistrement touristique est obligatoire sous 3 jours ouvrables. Police touristique : **1173**.";
     }
 
-    const fallbacks: Record<LanguageCode, string> = {
-      en: "Thank you for your message. We are ready to assist you. Our support center operates 24/7 on Tashkent Time.",
-      ru: "Спасибо за обращение. Мы готовы вам помочь. Наша служба поддержки работает круглосуточно по времени Ташкента.",
-      fr: "Merci pour votre message. Nous sommes prêts à vous aider. Notre centre de support fonctionne 24h/24 et 7j/7 à l'heure de Tachkent."
-    };
-    return fallbacks[currentLanguage] || fallbacks.en;
+    return "Thank you for contacting RegistApp Support. We are active 24/7 to assist with your Uzbekistan tourist registration.";
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const handleSendMessage = async (textToSend?: string) => {
+    const text = (textToSend || inputText).trim();
+    if (!text || isTyping) return;
 
     const userMsg: ChatMessage = {
       id: `chat-usr-${Date.now()}`,
       sender: 'user',
-      text: inputText,
+      text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages(prev => [...prev, userMsg]);
-    const currentInput = inputText;
-    setInputText('');
+    if (!textToSend) {
+      setInputText('');
+    }
     setIsTyping(true);
 
-    setTimeout(() => {
-      const responseText = generateAIResponse(currentInput);
+    try {
+      const legalDb = getLegalKnowledgeBase();
+      const res = await fetch('/api/support/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          conversationHistory: messages.slice(-5).map(m => ({ sender: m.sender === 'user' ? 'user' : 'model', text: m.text })),
+          language: currentLanguage,
+          legalKnowledgeBase: legalDb
+        })
+      });
+
+      let responseText = '';
+      if (res.ok) {
+        const data = await res.json();
+        responseText = data.reply || generateAIResponseFallback(text);
+      } else {
+        responseText = generateAIResponseFallback(text);
+      }
+
       const aiMsg: ChatMessage = {
         id: `chat-ai-${Date.now()}`,
         sender: 'ai',
@@ -153,60 +258,435 @@ export default function SupportChat({ currentLanguage }: SupportChatProps) {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, aiMsg]);
+    } catch {
+      const responseText = generateAIResponseFallback(text);
+      const aiMsg: ChatMessage = {
+        id: `chat-ai-${Date.now()}`,
+        sender: 'ai',
+        text: responseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, aiMsg]);
+    } finally {
       setIsTyping(false);
-    }, 850);
+    }
   };
+
+  handleSendMessageRef.current = handleSendMessage;
+
+  if (embedded) {
+    return (
+      <div
+        id="card-support-chat-window-embedded"
+        className="w-full flex flex-col overflow-hidden rounded-2xl border-2 border-[#7A9A3C] bg-gradient-to-b from-[#1C2615] via-[#141C10] to-[#0E150B] shadow-[0_0_35px_rgba(122,154,60,0.3)] ring-1 ring-[#90B24A]/50 transition-all duration-300 font-sans"
+      >
+        {/* Top Accent Ribbon Tag highlighting the AI block */}
+        <div className="bg-gradient-to-r from-[#7A9A3C] via-[#90B24A] to-[#7A9A3C] px-4 py-1.5 flex items-center justify-between text-black font-extrabold text-[11px] tracking-wider uppercase shadow-sm">
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 fill-black" />
+            <span>{currentLanguage === 'ru' ? 'Интерактивный ИИ-консультант' : currentLanguage === 'fr' ? 'Conseiller IA Interactif' : 'Interactive AI Consultant'}</span>
+          </span>
+          <span className="inline-flex items-center gap-1 bg-black/25 px-2 py-0.5 rounded-full text-[10px] font-mono tracking-normal text-white">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#C2E86B] animate-pulse"></span>
+            <span>24/7 ONLINE</span>
+          </span>
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between bg-gradient-to-r from-[#243519] via-[#1C2914] to-[#162210] p-4 border-b border-[#7A9A3C]/40">
+          <div className="flex items-center space-x-3">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[#7A9A3C] text-black shadow-md shadow-[#7A9A3C]/40 ring-2 ring-[#90B24A]/60">
+              <Bot className="h-5 w-5" id="icon-support-stars" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#C2E86B] border-2 border-[#162210]" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                <span>{currentLanguage === 'ru' ? 'ИИ-консультант RegistApp' : currentLanguage === 'fr' ? 'Conseiller IA RegistApp' : 'RegistApp AI Support'}</span>
+                <span className="inline-flex items-center rounded-md bg-[#7A9A3C]/30 border border-[#7A9A3C]/60 px-1.5 py-0.2 text-[9px] font-mono text-[#C2E86B] font-bold">
+                  PROACTIVE
+                </span>
+              </h4>
+              <div className="flex items-center space-x-1.5 mt-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#C2E86B] animate-pulse"></span>
+                <p className="text-[10px] text-[#A6CC8E] font-medium">
+                  {currentLanguage === 'ru' ? 'В сети • База законов РУз' : currentLanguage === 'fr' ? 'En ligne • Lois Ouzbékistan' : 'Online • Uzbekistan Legal DB'}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <a
+              href="tel:1173"
+              title={currentLanguage === 'ru' ? 'Горячая линия туристической полиции 1173' : 'Tourist Police 1173'}
+              className="rounded-xl px-2.5 py-1 text-[#E0EEDA] hover:text-black hover:bg-[#7A9A3C] bg-[#2A3F1D] border border-[#7A9A3C]/50 transition flex items-center gap-1.5 text-[11px] font-mono shadow-sm"
+            >
+              <PhoneCall className="h-3.5 w-3.5 text-[#C2E86B]" />
+              <span className="font-bold">1173</span>
+            </a>
+            <button
+              id="btn-support-chat-embedded-toggle"
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className="rounded-xl p-1.5 text-[#A6CC8E] transition hover:bg-[#2A3F1D] hover:text-white border border-[#7A9A3C]/40 text-xs font-mono"
+              title={isOpen ? t('close') : t('support')}
+            >
+              {isOpen ? <X className="h-4 w-4" /> : <Bot className="h-4 w-4 text-[#C2E86B]" />}
+            </button>
+          </div>
+        </div>
+
+        {/* When expanded: Subheader + Messages + Input */}
+        {isOpen ? (
+          <>
+            {/* Subheader Notice */}
+            <div className="bg-[#7A9A3C]/25 px-4 py-2 border-b border-[#7A9A3C]/35 flex items-center justify-between">
+              <p className="text-[11px] text-[#C2E86B] font-semibold flex items-center gap-1.5">
+                <Scale className="h-3.5 w-3.5 shrink-0 text-[#A6D448]" />
+                <span>
+                  {currentLanguage === 'ru'
+                    ? 'Консультации по правилу 3 дней, e-mehmon и ст. 224 КоАП'
+                    : currentLanguage === 'fr'
+                    ? 'Règle des 3 jours, e-mehmon et article 224 du code'
+                    : '3-day rule, e-mehmon compliance, & Article 224 guidance'}
+                </span>
+              </p>
+            </div>
+
+            {/* Message List */}
+            <div className="h-[340px] overflow-y-auto bg-[#10180D] p-4 space-y-3.5 text-xs">
+              {/* Session Disclaimer Banner: Shown before the first message, dismissible, re-appears in each new session */}
+              {showSessionDisclaimer && (
+                <div
+                  id="banner-chat-session-disclaimer-embedded"
+                  className="rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-neutral-900/50 p-3 text-[11px] leading-relaxed text-amber-200/90 shadow-sm relative animate-in fade-in duration-200"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 pr-5">
+                      <p className="font-semibold text-amber-300 text-xs mb-1">
+                        {currentLanguage === 'ru'
+                          ? 'Справочный характер консультаций'
+                          : currentLanguage === 'fr'
+                          ? 'Informations à titre indicatif'
+                          : 'Informational Legal Notice'}
+                      </p>
+                      <p className="text-amber-100/80 leading-normal text-[11px]">
+                        {currentLanguage === 'ru' ? (
+                          <>
+                            Ответы помощника носят справочный характер и не являются юридической консультацией. За официальными разъяснениями обращайтесь в подразделения миграции и оформления гражданства органов внутренних дел. Диалог обрабатывается системой искусственного интеллекта и может сохраняться — не вводите данные, которые не хотите передавать.
+                          </>
+                        ) : currentLanguage === 'fr' ? (
+                          <>
+                            Les réponses de l'assistant sont fournies à titre indicatif et ne constituent pas un conseil juridique officiel. Pour des clarifications officielles, veuillez vous adresser aux services des migrations et de la citoyenneté du ministère des Affaires intérieures. La conversation est traitée par un système d'intelligence artificielle et peut être enregistrée — ne saisissez pas de données que vous ne souhaitez pas transmettre.
+                          </>
+                        ) : (
+                          <>
+                            Assistant responses are for reference only and do not constitute formal legal counsel. For official clarifications, please consult the migration and citizenship departments of the internal affairs bodies. The dialogue is processed by artificial intelligence and may be logged — do not enter details you do not wish to share.
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      id="btn-close-session-disclaimer-embedded"
+                      onClick={handleDismissDisclaimer}
+                      className="absolute top-2.5 right-2.5 text-amber-400/80 hover:text-amber-200 p-1 rounded-lg hover:bg-amber-900/40 transition cursor-pointer"
+                      title={currentLanguage === 'ru' ? 'Закрыть уведомление' : 'Dismiss'}
+                      aria-label="Dismiss disclaimer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {messages.map((msg) => (
+                <div
+                  id={`chat-msg-${msg.id}`}
+                  key={msg.id}
+                  className={`flex items-start gap-2.5 ${msg.sender === 'user' ? 'justify-end' : ''}`}
+                >
+                  {msg.sender === 'ai' && (
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#7A9A3C] text-black font-bold shadow-sm mt-0.5">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                      msg.sender === 'user'
+                        ? 'bg-[#7A9A3C] text-black font-semibold rounded-tr-none shadow-md shadow-[#7A9A3C]/30'
+                        : 'bg-[#1C2A15] text-[#F0F5EC] border border-[#7A9A3C]/40 rounded-tl-none shadow-sm'
+                    }`}
+                  >
+                    <p className="whitespace-pre-line">{msg.text}</p>
+                    <span className={`mt-1 block text-[9px] text-right font-mono ${msg.sender === 'user' ? 'text-black/70' : 'text-[#8EA87D]'}`}>
+                      {msg.timestamp}
+                    </span>
+                  </div>
+                  {msg.sender === 'user' && (
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#2A3F1D] border border-[#7A9A3C]/50 text-[#C2E86B] mt-0.5">
+                      <User className="h-3.5 w-3.5" />
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Quick Prompt Topic Pills: Shown right after greeting */}
+              {messages.length <= 2 && (
+                <div className="pt-2 pb-1 space-y-1.5">
+                  <span className="text-[10px] font-mono text-[#A6CC8E] uppercase tracking-wider block font-bold">
+                    {currentLanguage === 'ru' ? '💡 Популярные темы для быстрого ответа:' : '💡 Quick topic suggestions:'}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {quickPills.map((pill, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSendMessage(pill.query)}
+                        disabled={isTyping}
+                        className="rounded-lg border border-[#7A9A3C]/40 bg-[#1D2C16] px-2.5 py-1.5 text-[11px] text-[#E0EEDA] hover:border-[#90B24A] hover:bg-[#7A9A3C] hover:text-black transition-all cursor-pointer text-left disabled:opacity-50 font-medium"
+                      >
+                        {pill.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isTyping && (
+                <div id="chat-is-typing" className="flex items-start gap-2.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#7A9A3C] text-black">
+                    <Bot className="h-4 w-4 animate-bounce" />
+                  </div>
+                  <div className="rounded-2xl rounded-tl-none bg-[#1C2A15] border border-[#7A9A3C]/40 px-3.5 py-2.5 text-[#C2E86B] text-xs">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce"></span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce [animation-delay:0.2s]"></span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce [animation-delay:0.4s]"></span>
+                      <span className="text-[10px] ml-1 font-mono text-[#A6CC8E]">
+                        {currentLanguage === 'ru' ? 'Поиск в базе законов...' : 'Consulting legal DB...'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Form Input */}
+            <form
+              id="form-support-chat-input"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className="flex items-center space-x-2 bg-gradient-to-r from-[#1A2813] to-[#14200E] p-3 border-t border-[#7A9A3C]/40"
+            >
+              <input
+                id="input-support-chat-text"
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={currentLanguage === 'ru' ? 'Что вас интересует? Напишите вопрос...' : t('askPlaceholder')}
+                className="flex-1 rounded-xl border border-[#7A9A3C]/50 bg-[#0C1309] px-3.5 py-2 text-xs text-white placeholder-[#8FAD78] outline-none focus:border-[#C2E86B] focus:ring-1 focus:ring-[#C2E86B]/50 transition"
+              />
+              <button
+                id="btn-support-chat-submit"
+                type="submit"
+                disabled={!inputText.trim() || isTyping}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#7A9A3C] text-black font-bold transition hover:bg-[#90B24A] hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0 shadow-md shadow-[#7A9A3C]/30"
+              >
+                <Send className="h-4 w-4" id="icon-support-send" />
+              </button>
+            </form>
+
+            {/* Permanent bottom disclaimer under input with /privacy link */}
+            <div
+              id="footer-support-chat-disclaimer-embedded"
+              className="bg-[#0C1309] px-3 py-1.5 border-t border-[#7A9A3C]/20 text-[10px] text-[#8FAD78] text-center flex items-center justify-center gap-1.5 flex-wrap font-sans"
+            >
+              <span>
+                {currentLanguage === 'ru'
+                  ? 'Справочная информация. Актуально на дату ответа.'
+                  : currentLanguage === 'fr'
+                  ? 'Information à titre indicatif. Valable à la date de réponse.'
+                  : 'Reference information only. Current as of response date.'}
+              </span>
+              <a
+                href="/privacy"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (typeof window !== 'undefined') {
+                    window.history.pushState(null, '', '/privacy');
+                    window.dispatchEvent(new CustomEvent('app-navigate', { detail: { path: '/privacy' } }));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                className="text-[#A6D448] hover:text-white underline underline-offset-2 transition font-medium"
+              >
+                /privacy
+              </a>
+            </div>
+          </>
+        ) : (
+          <div className="p-3 bg-gradient-to-r from-[#243519] to-[#1C2914] text-center text-xs text-[#C2E86B]">
+            <button
+              onClick={() => setIsOpen(true)}
+              className="text-[#C2E86B] hover:text-white font-bold flex items-center justify-center gap-1.5 mx-auto"
+            >
+              <Bot className="h-4 w-4 text-[#7A9A3C]" />
+              <span>{currentLanguage === 'ru' ? 'Развернуть диалог с ИИ-консультантом' : 'Open AI Support Conversation'}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
-      {/* Floating Toggle Button */}
+      {/* Floating Toggle Button (visible at bottom right) */}
       <button
         id="btn-support-chat-toggle"
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#65a30d] text-white shadow-xl saturate-120 transition-all duration-300 hover:scale-110 active:scale-95"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#7A9A3C] text-black font-bold shadow-2xl transition-all duration-300 hover:scale-105 hover:bg-[#5E7A2A] hover:text-white active:scale-95"
         title={t('support')}
       >
-        {isOpen ? <X className="h-6 w-6" id="icon-support-close" /> : <MessageSquare className="h-6 w-6 animate-pulse" id="icon-support-open" />}
+        {isOpen ? <X className="h-6 w-6 text-black" id="icon-support-close" /> : (
+          <div className="relative flex items-center justify-center">
+            <Bot className="h-7 w-7" id="icon-support-open" />
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-lime-500"></span>
+            </span>
+          </div>
+        )}
       </button>
 
-      {/* Chat Window Box */}
+      {/* Chat Window Box (opens immediately by default) */}
       {isOpen && (
         <div
           id="card-support-chat-window"
-          className="fixed bottom-24 right-6 z-50 flex h-[480px] w-96 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl transition-all duration-300 sm:w-80 md:w-96"
+          className="fixed bottom-24 right-4 sm:right-6 z-50 flex h-[520px] max-h-[85vh] w-[calc(100vw-2rem)] sm:w-[420px] flex-col overflow-hidden rounded-2xl border-2 border-[#7A9A3C] bg-gradient-to-b from-[#1C2615] via-[#141C10] to-[#0E150B] shadow-[0_0_40px_rgba(122,154,60,0.35)] ring-1 ring-[#90B24A]/50 transition-all duration-300 font-sans animate-fade-in"
         >
+          {/* Top Accent Ribbon Tag highlighting the AI block */}
+          <div className="bg-gradient-to-r from-[#7A9A3C] via-[#90B24A] to-[#7A9A3C] px-4 py-1.5 flex items-center justify-between text-black font-extrabold text-[11px] tracking-wider uppercase shadow-sm">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 fill-black" />
+              <span>{currentLanguage === 'ru' ? 'Интерактивный ИИ-консультант' : currentLanguage === 'fr' ? 'Conseiller IA Interactif' : 'Interactive AI Consultant'}</span>
+            </span>
+            <span className="inline-flex items-center gap-1 bg-black/25 px-2 py-0.5 rounded-full text-[10px] font-mono tracking-normal text-white">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#C2E86B] animate-pulse"></span>
+              <span>24/7 ONLINE</span>
+            </span>
+          </div>
+
           {/* Header */}
-          <div className="flex items-center justify-between bg-zinc-950 p-4 border-b border-zinc-800">
-            <div className="flex items-center space-x-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#65a30d]/20 text-[#a2e635]">
-                <Sparkles className="h-4 w-4" id="icon-support-stars" />
+          <div className="flex items-center justify-between bg-gradient-to-r from-[#243519] via-[#1C2914] to-[#162210] p-4 border-b border-[#7A9A3C]/40">
+            <div className="flex items-center space-x-3">
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[#7A9A3C] text-black shadow-md shadow-[#7A9A3C]/40 ring-2 ring-[#90B24A]/60">
+                <Bot className="h-5 w-5" id="icon-support-stars" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#C2E86B] border-2 border-[#162210]" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-zinc-100">{t('support')}</h4>
-                <div className="flex items-center space-x-1.5">
-                  <span className="h-2 w-2 rounded-full bg-lime-500 animate-pulse"></span>
-                  <p className="text-[10px] text-zinc-400">{t('aiBotActive')}</p>
+                <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>{currentLanguage === 'ru' ? 'ИИ-консультант RegistApp' : currentLanguage === 'fr' ? 'Conseiller IA RegistApp' : 'RegistApp AI Support'}</span>
+                  <span className="inline-flex items-center rounded-md bg-[#7A9A3C]/30 border border-[#7A9A3C]/60 px-1.5 py-0.2 text-[9px] font-mono text-[#C2E86B] font-bold">
+                    PROACTIVE
+                  </span>
+                </h4>
+                <div className="flex items-center space-x-1.5 mt-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#C2E86B] animate-pulse"></span>
+                  <p className="text-[10px] text-[#A6CC8E] font-medium">
+                    {currentLanguage === 'ru' ? 'В сети • База законов РУз' : currentLanguage === 'fr' ? 'En ligne • Lois Ouzbékistan' : 'Online • Uzbekistan Legal DB'}
+                  </p>
                 </div>
               </div>
             </div>
-            <button
-              id="btn-support-chat-inner-close"
-              onClick={() => setIsOpen(false)}
-              className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
-            >
-              <X className="h-4 w-4" id="icon-inner-close" />
-            </button>
+            
+            <div className="flex items-center space-x-1">
+              <a
+                href="tel:1173"
+                title={currentLanguage === 'ru' ? 'Горячая линия туристической полиции 1173' : 'Tourist Police 1173'}
+                className="rounded-xl px-2.5 py-1 text-[#E0EEDA] hover:text-black hover:bg-[#7A9A3C] bg-[#2A3F1D] border border-[#7A9A3C]/50 transition flex items-center gap-1.5 text-[11px] font-mono shadow-sm"
+              >
+                <PhoneCall className="h-3.5 w-3.5 text-[#C2E86B]" />
+                <span className="hidden xs:inline font-bold">1173</span>
+              </a>
+              <button
+                id="btn-support-chat-inner-close"
+                onClick={() => setIsOpen(false)}
+                className="rounded-xl p-1.5 text-[#A6CC8E] transition hover:bg-[#2A3F1D] hover:text-white border border-[#7A9A3C]/40 text-xs font-mono"
+                title={t('close')}
+              >
+                <X className="h-4 w-4" id="icon-inner-close" />
+              </button>
+            </div>
           </div>
 
           {/* Subheader Notice */}
-          <div className="bg-[#65a30d]/10 px-4 py-2 border-b border-zinc-800/50">
-            <p className="text-[11px] text-[#a2e635] leading-relaxed">
-              {t('supportDesc')}
+          <div className="bg-[#7A9A3C]/25 px-4 py-2 border-b border-[#7A9A3C]/35 flex items-center justify-between">
+            <p className="text-[11px] text-[#C2E86B] font-semibold flex items-center gap-1.5">
+              <Scale className="h-3.5 w-3.5 shrink-0 text-[#A6D448]" />
+              <span>
+                {currentLanguage === 'ru'
+                  ? 'Консультации по правилу 3 дней, e-mehmon и ст. 224 КоАП'
+                  : currentLanguage === 'fr'
+                  ? 'Règle des 3 jours, e-mehmon et article 224 du code'
+                  : '3-day rule, e-mehmon compliance, & Article 224 guidance'}
+              </span>
             </p>
           </div>
 
           {/* Message List */}
-          <div className="flex-1 overflow-y-auto bg-zinc-900/60 p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto bg-[#10180D] p-4 space-y-3.5 text-xs">
+            {/* Session Disclaimer Banner: Shown before the first message, dismissible, re-appears in each new session */}
+            {showSessionDisclaimer && (
+              <div
+                id="banner-chat-session-disclaimer-floating"
+                className="rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-neutral-900/50 p-3 text-[11px] leading-relaxed text-amber-200/90 shadow-sm relative animate-in fade-in duration-200"
+              >
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 pr-5">
+                    <p className="font-semibold text-amber-300 text-xs mb-1">
+                      {currentLanguage === 'ru'
+                        ? 'Справочный характер консультаций'
+                        : currentLanguage === 'fr'
+                        ? 'Informations à titre indicatif'
+                        : 'Informational Legal Notice'}
+                    </p>
+                    <p className="text-amber-100/80 leading-normal text-[11px]">
+                      {currentLanguage === 'ru' ? (
+                        <>
+                          Ответы помощника носят справочный характер и не являются юридической консультацией. За официальными разъяснениями обращайтесь в подразделения миграции и оформления гражданства органов внутренних дел. Диалог обрабатывается системой искусственного интеллекта и может сохраняться — не вводите данные, которые не хотите передавать.
+                        </>
+                      ) : currentLanguage === 'fr' ? (
+                        <>
+                          Les réponses de l'assistant sont fournies à titre indicatif et ne constituent pas un conseil juridique officiel. Pour des clarifications officielles, veuillez vous adresser aux services des migrations et de la citoyenneté du ministère des Affaires intérieures. La conversation est traitée par un système d'intelligence artificielle et peut être enregistrée — ne saisissez pas de données que vous ne souhaitez pas transmettre.
+                        </>
+                      ) : (
+                        <>
+                          Assistant responses are for reference only and do not constitute formal legal counsel. For official clarifications, please consult the migration and citizenship departments of the internal affairs bodies. The dialogue is processed by artificial intelligence and may be logged — do not enter details you do not wish to share.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    id="btn-close-session-disclaimer-floating"
+                    onClick={handleDismissDisclaimer}
+                    className="absolute top-2.5 right-2.5 text-amber-400/80 hover:text-amber-200 p-1 rounded-lg hover:bg-amber-900/40 transition cursor-pointer"
+                    title={currentLanguage === 'ru' ? 'Закрыть уведомление' : 'Dismiss'}
+                    aria-label="Dismiss disclaimer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {messages.map((msg) => (
               <div
                 id={`chat-msg-${msg.id}`}
@@ -214,38 +694,65 @@ export default function SupportChat({ currentLanguage }: SupportChatProps) {
                 className={`flex items-start gap-2.5 ${msg.sender === 'user' ? 'justify-end' : ''}`}
               >
                 {msg.sender === 'ai' && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#65a30d]/20 text-[#a2e635]">
-                    <Bot className="h-3.5 w-3.5" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#7A9A3C] text-black font-bold shadow-sm mt-0.5">
+                    <Bot className="h-4 w-4" />
                   </div>
                 )}
                 <div
-                  className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 text-xs ${
+                  className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
                     msg.sender === 'user'
-                      ? 'bg-[#65a30d] text-white rounded-tr-none font-medium'
-                      : 'bg-zinc-800 text-zinc-100 rounded-tl-none'
+                      ? 'bg-[#7A9A3C] text-black font-semibold rounded-tr-none shadow-md shadow-[#7A9A3C]/30'
+                      : 'bg-[#1C2A15] text-[#F0F5EC] border border-[#7A9A3C]/40 rounded-tl-none shadow-sm'
                   }`}
                 >
-                  <p className="leading-relaxed whitespace-pre-line">{msg.text}</p>
-                  <span className="mt-1 block text-[9px] text-zinc-400/80 text-right">{msg.timestamp}</span>
+                  <p className="whitespace-pre-line">{msg.text}</p>
+                  <span className={`mt-1 block text-[9px] text-right font-mono ${msg.sender === 'user' ? 'text-black/70' : 'text-[#8EA87D]'}`}>
+                    {msg.timestamp}
+                  </span>
                 </div>
                 {msg.sender === 'user' && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-zinc-400">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#2A3F1D] border border-[#7A9A3C]/50 text-[#C2E86B] mt-0.5">
                     <User className="h-3.5 w-3.5" />
                   </div>
                 )}
               </div>
             ))}
 
+            {/* Quick Prompt Topic Pills: Shown right after greeting so visitor can click immediately */}
+            {messages.length <= 2 && (
+              <div className="pt-2 pb-1 space-y-1.5">
+                <span className="text-[10px] font-mono text-[#A6CC8E] uppercase tracking-wider block font-bold">
+                  {currentLanguage === 'ru' ? '💡 Популярные темы для быстрого ответа:' : '💡 Quick topic suggestions:'}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {quickPills.map((pill, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendMessage(pill.query)}
+                      disabled={isTyping}
+                      className="rounded-lg border border-[#7A9A3C]/40 bg-[#1D2C16] px-2.5 py-1.5 text-[11px] text-[#E0EEDA] hover:border-[#90B24A] hover:bg-[#7A9A3C] hover:text-black transition-all cursor-pointer text-left disabled:opacity-50 font-medium"
+                    >
+                      {pill.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {isTyping && (
               <div id="chat-is-typing" className="flex items-start gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#65a30d]/20 text-[#a2e635]">
-                  <Bot className="h-3.5 w-3.5 animate-bounce" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#7A9A3C] text-black">
+                  <Bot className="h-4 w-4 animate-bounce" />
                 </div>
-                <div className="rounded-2xl rounded-tl-none bg-zinc-800 px-3.5 py-2 text-zinc-400 text-xs">
-                  <div className="flex space-x-1 py-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce"></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.2s]"></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.4s]"></span>
+                <div className="rounded-2xl rounded-tl-none bg-[#1C2A15] border border-[#7A9A3C]/40 px-3.5 py-2.5 text-[#C2E86B] text-xs">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce [animation-delay:0.2s]"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce [animation-delay:0.4s]"></span>
+                    <span className="text-[10px] ml-1 font-mono text-[#A6CC8E]">
+                      {currentLanguage === 'ru' ? 'Поиск в базе законов...' : 'Consulting legal DB...'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -256,27 +763,60 @@ export default function SupportChat({ currentLanguage }: SupportChatProps) {
           {/* Form Input */}
           <form
             id="form-support-chat-input"
-            onSubmit={handleSendMessage}
-            className="flex items-center space-x-2 bg-zinc-950 p-3 border-t border-zinc-800"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="flex items-center space-x-2 bg-gradient-to-r from-[#1A2813] to-[#14200E] p-3 border-t border-[#7A9A3C]/40"
           >
             <input
               id="input-support-chat-text"
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={t('askPlaceholder')}
-              className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:border-[#65a30d]"
+              placeholder={currentLanguage === 'ru' ? 'Что вас интересует? Напишите вопрос...' : t('askPlaceholder')}
+              className="flex-1 rounded-xl border border-[#7A9A3C]/50 bg-[#0C1309] px-3.5 py-2 text-xs text-white placeholder-[#8FAD78] outline-none focus:border-[#C2E86B] focus:ring-1 focus:ring-[#C2E86B]/50 transition"
             />
             <button
               id="btn-support-chat-submit"
               type="submit"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#65a30d] text-white transition hover:bg-[#65a30d]/90"
+              disabled={!inputText.trim() || isTyping}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#7A9A3C] text-black font-bold transition hover:bg-[#90B24A] hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0 shadow-md shadow-[#7A9A3C]/30"
             >
               <Send className="h-4 w-4" id="icon-support-send" />
             </button>
           </form>
+
+          {/* Permanent bottom disclaimer under input with /privacy link */}
+          <div
+            id="footer-support-chat-disclaimer-floating"
+            className="bg-[#0C1309] px-3 py-1.5 border-t border-[#7A9A3C]/20 text-[10px] text-[#8FAD78] text-center flex items-center justify-center gap-1.5 flex-wrap font-sans shrink-0"
+          >
+            <span>
+              {currentLanguage === 'ru'
+                ? 'Справочная информация. Актуально на дату ответа.'
+                : currentLanguage === 'fr'
+                ? 'Information à titre indicatif. Valable à la date de réponse.'
+                : 'Reference information only. Current as of response date.'}
+            </span>
+            <a
+              href="/privacy"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof window !== 'undefined') {
+                  window.history.pushState(null, '', '/privacy');
+                  window.dispatchEvent(new CustomEvent('app-navigate', { detail: { path: '/privacy' } }));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
+              className="text-[#A6D448] hover:text-white underline underline-offset-2 transition font-medium"
+            >
+              /privacy
+            </a>
+          </div>
         </div>
       )}
     </>
   );
 }
+

@@ -11,7 +11,10 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.uid == "YmHbaNrbd5U6kGgotrsZdlT2RBP2" ||
-        (request.auth.token != null && 'email' in request.auth.token && request.auth.token.email == "admin@registapp.uz")
+        (request.auth.token != null && 'email' in request.auth.token && (
+          request.auth.token.email == "admin@registapp.uz" ||
+          request.auth.token.email == "admin@registapp.online"
+        ))
       );
     }
 
@@ -19,7 +22,12 @@ service cloud.firestore {
     function isOperator() {
       return isAuthenticated() && (
         request.auth.uid == "pUrYJVVb31RYKK3pXRTz4Ih0jgG3" ||
-        (request.auth.token != null && 'email' in request.auth.token && request.auth.token.email == "operator@registapp.uz")
+        (request.auth.token != null && 'email' in request.auth.token && (
+          request.auth.token.email == "operator@registapp.uz" ||
+          request.auth.token.email == "operator1@registapp.online" ||
+          request.auth.token.email == "operator2@registapp.online" ||
+          request.auth.token.email == "info@registapp.online"
+        ))
       );
     }
 
@@ -85,6 +93,39 @@ service cloud.firestore {
       allow read: if isStaff();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
+    }
+
+    // 5. Tourist News collection rules
+    match /tourist_news/{newsId} {
+      // News is publicly readable for tourists and clients
+      allow read: if true;
+      // Only Admins can upload, modify, or delete news
+      allow write: if isAdmin();
+    }
+
+    // 6. Consents collection rules
+    match /consents/{consentId} {
+      // Authorized staff (Admin, Operator) can inspect consents for legal compliance & audit trail.
+      // Individual client accounts can read their own consent documents.
+      allow read: if isStaff() || (
+        isAuthenticated() && (
+          (resource == null) ||
+          (resource.data != null && 'userId' in resource.data && resource.data.userId == request.auth.uid) ||
+          (resource.data != null && 'userEmail' in resource.data && request.auth.token != null && 'email' in request.auth.token && resource.data.userEmail.lower() == request.auth.token.email.lower())
+        )
+      );
+
+      // Authenticated clients or staff can record consent upon placing an order
+      allow create: if isStaff() || (
+        isAuthenticated() && (
+          (request.resource.data != null && 'userId' in request.resource.data && request.resource.data.userId == request.auth.uid) ||
+          (request.resource.data != null && 'userEmail' in request.resource.data && request.auth.token != null && 'email' in request.auth.token && request.resource.data.userEmail.lower() == request.auth.token.email.lower())
+        )
+      );
+
+      // Consents are immutable legal records; modification is prohibited.
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }

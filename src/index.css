@@ -1,6 +1,5 @@
-@import "tailwindcss";
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@700&family=Montserrat:wght@700;800;900&display=swap');
+@import "tailwindcss";
 
 @theme {
   --color-brand-anthracite: #1E2222;
@@ -83,8 +82,20 @@ h1, h2, h3, h4, .font-display {
 .bg-\[\#65a30d\] {
   background-color: #7A9A3C !important;
 }
+.hover\:bg-\[\#65a30d\]:hover {
+  background-color: #5E7A2A !important;
+}
 .hover\:bg-\[\#65a30d\]\/90:hover {
   background-color: rgba(122, 154, 58, 0.9) !important;
+}
+.hover\:bg-\[\#65a30d\]\/20:hover {
+  background-color: rgba(122, 154, 58, 0.2) !important;
+}
+.hover\:bg-\[\#4d7c0f\]:hover {
+  background-color: #5E7A2A !important;
+}
+.bg-\[\#4d7c0f\] {
+  background-color: #5E7A2A !important;
 }
 .bg-\[\#65a30d\]\/20 {
   background-color: rgba(122, 154, 58, 0.2) !important;
@@ -97,6 +108,9 @@ h1, h2, h3, h4, .font-display {
 }
 
 /* Supporting Highlight Olive: #a2e635 -> #90B24A */
+.bg-\[\#a2e635\] {
+  background-color: #90B24A !important;
+}
 .bg-\[\#a2e635\]\/20 {
   background-color: rgba(144, 178, 74, 0.2) !important;
 }
@@ -113,11 +127,20 @@ h1, h2, h3, h4, .font-display {
 .border-\[\#65a30d\] {
   border-color: #7A9A3C !important;
 }
-.border-\[\#65a30d\]\/30 {
-  border-color: rgba(122, 154, 58, 0.3) !important;
+.border-\[\#65a30d\]\/55 {
+  border-color: rgba(122, 154, 58, 0.55) !important;
+}
+.border-\[\#65a30d\]\/50 {
+  border-color: rgba(122, 154, 58, 0.5) !important;
+}
+.border-\[\#65a30d\]\/45 {
+  border-color: rgba(122, 154, 58, 0.45) !important;
 }
 .border-\[\#65a30d\]\/40 {
   border-color: rgba(122, 154, 58, 0.4) !important;
+}
+.border-\[\#65a30d\]\/30 {
+  border-color: rgba(122, 154, 58, 0.3) !important;
 }
 .hover\:border-\[\#65a30d\]:hover {
   border-color: #7A9A3C !important;
@@ -135,6 +158,26 @@ h1, h2, h3, h4, .font-display {
 }
 .hover\:text-\[\#a2e635\]:hover {
   color: #90B24A !important;
+}
+.hover\:text-\[\#84cc16\]:hover {
+  color: #90B24A !important;
+}
+.focus\:ring-\[\#84cc16\]:focus {
+  --tw-ring-color: #7A9A3C !important;
+}
+.shadow-\[\#65a30d\]\/30 {
+  --tw-shadow-color: rgba(122, 154, 58, 0.3) !important;
+}
+
+/* Tailwind utility lime fallbacks */
+.text-lime-400, .text-lime-500 {
+  color: #90B24A !important;
+}
+.bg-lime-400, .bg-lime-500 {
+  background-color: #7A9A3C !important;
+}
+.border-lime-400, .border-lime-500 {
+  border-color: #7A9A3C !important;
 }
 
 /* Errors & warnings: fallback custom red colors to Muted Red (#D9534F) */

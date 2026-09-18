@@ -4,6 +4,7 @@ import {
   UserCheck, X, Eye, FileDigit, ZoomIn 
 } from 'lucide-react';
 import { User, Order, LanguageCode } from '../types';
+import AppFooter from './AppFooter';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 
@@ -480,7 +481,7 @@ export default function AdminUserDashboard({
               )}
             </div>
             
-            <div className="p-4 border-t border-zinc-850 flex justify-end bg-zinc-900/55">
+            <div className="p-4 border-t border-zinc-855 flex justify-end bg-zinc-900/55">
               <button
                 id="preview-download-modal-btn"
                 onClick={() => {
@@ -495,6 +496,13 @@ export default function AdminUserDashboard({
           </div>
         </div>
       )}
+
+      {/* Shared Footer with Legal Navigation and Requisites */}
+      <AppFooter
+        id="footer-admin-user-dashboard"
+        currentLanguage={currentLanguage}
+        className="mt-16"
+      />
 
     </div>
   );

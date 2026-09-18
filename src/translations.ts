@@ -143,7 +143,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     paymentSplit: 'Payment Volumes by Currency',
     successFullCount: 'Successful Registrations',
     violationCount: 'Violations Issued',
-    copyrightText: 'RegistApp® is a registered brand of FE “Jules Verne Hostel”. Certificate number: 50 (20.09.2026). Tourist registration is carried out through the emehmon system.',
+    copyrightText: 'RegistApp® is a registered brand of Family Enterprise “Jules Verne Hostel”. Certificate number: 50 (20.09.2026). Tourist registration is carried out through the emehmon system.',
   },
   ru: {
     appName: 'RegistApp',
@@ -280,7 +280,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     paymentSplit: 'Объем платежей по валютам',
     successFullCount: 'Успешных регистраций',
     violationCount: 'Выявлено нарушений',
-    copyrightText: 'RegistApp® является зарегистрированным брендом FE “Jules Verne Hostel”. Номер сертификата: 50 (20.09.2026). Регистрация туристов осуществляется через систему emehmon',
+    copyrightText: 'RegistApp® является зарегистрированным брендом Семейного предприятия «Jules Verne Hostel». Номер сертификата: 50 (20.09.2026). Регистрация туристов осуществляется через систему emehmon',
   },
   fr: {
     appName: 'RegistApp',
@@ -417,7 +417,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     paymentSplit: 'Volumes de paiement par devise',
     successFullCount: 'Enregistrements réussis',
     violationCount: 'Infractions enregistrées',
-    copyrightText: 'RegistApp® est une marque déposée de FE « Jules Verne Hostel ». Numéro de certificat : 50 (20.09.2026). L\'enregistrement des touristes s\'effectue via le système emehmon.',
+    copyrightText: 'RegistApp® est une marque déposée de l\'Entreprise Familiale « Jules Verne Hostel ». Numéro de certificat : 50 (20.09.2026). L\'enregistrement des touristes s\'effectue via le système emehmon.',
   }
 };
 

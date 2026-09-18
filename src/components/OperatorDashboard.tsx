@@ -9,6 +9,7 @@ import { getOrders, sendViolation, completeOrder, addAuditLog, claimOrder, relea
 import { translations, translateCountry } from '../translations';
 import { formatPlacementAndWaiting, formatResponseTimeAndExecution, isUrgentOrder } from './ClientDashboard';
 import { BrandLogo } from './BrandLogo';
+import AppFooter from './AppFooter';
 
 interface OperatorDashboardProps {
   currentLanguage: LanguageCode;
@@ -16,9 +17,10 @@ interface OperatorDashboardProps {
   currentUser: User;
   onLogout: () => void;
   onProfileUpdate: (user: User) => void;
+  onNavigate?: (path: string) => void;
 }
 
-export default function OperatorDashboard({ currentLanguage, setLanguage, currentUser, onLogout, onProfileUpdate }: OperatorDashboardProps) {
+export default function OperatorDashboard({ currentLanguage, setLanguage, currentUser, onLogout, onProfileUpdate, onNavigate }: OperatorDashboardProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState<'open' | 'history' | 'blacklist'>('open');
@@ -1118,16 +1120,13 @@ export default function OperatorDashboard({ currentLanguage, setLanguage, curren
                     <button
                       id="btn-operator-finalize-submit"
                       type="submit"
-                      disabled={selectedOrder.status === 'Completed'}
                       className={`w-full py-3 rounded-xl text-xs font-bold transition duration-300 ${
-                        selectedOrder.status === 'Completed'
-                          ? 'bg-gray-800 text-gray-500 border border-gray-750 cursor-not-allowed text-center'
-                          : uploadedDocName
+                        uploadedDocName
                           ? 'bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-600/30 font-black'
                           : 'bg-[#65a30d] text-[#111827] hover:bg-[#4d7c0f] hover:text-white shadow-lg shadow-[#65a30d]/10 font-black'
                       }`}
                     >
-                      {selectedOrder.status === 'Completed' ? (currentLanguage === 'ru' ? 'Уже проверено и архивировано' : 'Already Verified & Archived') : t('completeProcessingBtn')}
+                      {t('completeProcessingBtn')}
                     </button>
                   </form>
                 )}
@@ -1139,6 +1138,14 @@ export default function OperatorDashboard({ currentLanguage, setLanguage, curren
         )}
 
       </div>
+
+      {/* Shared Footer with Legal Navigation */}
+      <AppFooter
+        id="footer-operator-dashboard"
+        currentLanguage={currentLanguage}
+        onNavigate={onNavigate}
+        className="mt-16"
+      />
     </div>
   );
 }

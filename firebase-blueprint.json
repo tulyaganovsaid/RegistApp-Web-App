@@ -49,9 +49,28 @@
         "supportAiScript": { "type": "string" },
         "publicOfferText": { "type": "string" },
         "publicOfferTextFR": { "type": "string" },
-        "publicOfferTextRU": { "type": "string" }
+        "publicOfferTextRU": { "type": "string" },
+        "legalKnowledgeBase": { "type": "string" },
+        "legalKnowledgeBaseUpdatedAt": { "type": "string" }
       },
       "required": ["supportAiScript", "publicOfferText"]
+    },
+    "TouristNews": {
+      "title": "TouristNews",
+      "description": "Tourism news article for foreign visitors in Uzbekistan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "illustration": { "type": "string" },
+        "body": { "type": "string" },
+        "summary": { "type": "string" },
+        "category": { "type": "string" },
+        "publishedAt": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "author": { "type": "string" }
+      },
+      "required": ["id", "title", "body", "publishedAt"]
     },
     "AuditLog": {
       "title": "AuditLog",
@@ -65,6 +84,62 @@
         "details": { "type": "string" }
       },
       "required": ["id", "timestamp", "userEmail", "action", "details"]
+    },
+    "Consent": {
+      "title": "Consent",
+      "description": "Proof of client consent to legal terms, personal data processing, cross-border transfer, and independent tourist status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "locale": { "type": "string" },
+        "consents": {
+          "type": "object",
+          "properties": {
+            "dataProcessing": { "type": "boolean" },
+            "thirdPartyTransfer": { "type": "boolean" },
+            "crossBorderTransfer": { "type": "boolean" },
+            "termsAccepted": { "type": "boolean" },
+            "marketing": { "type": "boolean" },
+            "selfTravellerStatus": { "type": "boolean" }
+          },
+          "required": [
+            "dataProcessing",
+            "thirdPartyTransfer",
+            "crossBorderTransfer",
+            "termsAccepted",
+            "marketing",
+            "selfTravellerStatus"
+          ]
+        },
+        "documentsVersion": {
+          "type": "object",
+          "properties": {
+            "privacyVersion": { "type": "string" },
+            "termsVersion": { "type": "string" },
+            "cookiesVersion": { "type": "string" }
+          },
+          "required": [
+            "privacyVersion",
+            "termsVersion",
+            "cookiesVersion"
+          ]
+        },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" }
+      },
+      "required": [
+        "orderId",
+        "timestamp",
+        "ipAddress",
+        "userAgent",
+        "locale",
+        "consents",
+        "documentsVersion"
+      ]
     }
   },
   "firestore": {
@@ -80,9 +155,17 @@
       "schema": { "$ref": "#/entities/SystemConfig" },
       "description": "Singleton config parameters document"
     },
+    "tourist_news/{newsId}": {
+      "schema": { "$ref": "#/entities/TouristNews" },
+      "description": "Tourism and regulatory news collection"
+    },
     "audit_logs/{logId}": {
       "schema": { "$ref": "#/entities/AuditLog" },
       "description": "Traceability ledger for backend system inspections"
+    },
+    "consents/{consentId}": {
+      "schema": { "$ref": "#/entities/Consent" },
+      "description": "Immutable ledger of user consents for GDPR and Uzbek Personal Data Law compliance"
     }
   }
 }
