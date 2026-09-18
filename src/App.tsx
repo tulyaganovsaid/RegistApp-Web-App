@@ -69,7 +69,8 @@ export default function App() {
       try {
         const u = JSON.parse(storedUser);
         if (u && typeof u === 'object' && u.email) {
-          if (u.email.toLowerCase() === 'admin@registapp.uz') {
+          const em = u.email.toLowerCase();
+          if (em === 'admin@registapp.uz' || em === 'registapp@gmail.com' || em === 'admin@registapp.online' || em === 'tulyaganovsaid@gmail.com') {
             u.firstName = 'Саид';
             u.lastName = 'Туляганов';
             u.role = 'Admin';
@@ -90,7 +91,8 @@ export default function App() {
   }, []);
 
   const handleLoginSuccess = (user: User) => {
-    if (user.email?.toLowerCase() === 'admin@registapp.uz') {
+    const em = (user.email || '').toLowerCase();
+    if (em === 'admin@registapp.uz' || em === 'registapp@gmail.com' || em === 'admin@registapp.online' || em === 'tulyaganovsaid@gmail.com') {
       user.firstName = 'Саид';
       user.lastName = 'Туляганов';
       user.role = 'Admin';
@@ -100,7 +102,8 @@ export default function App() {
   };
 
   const handleProfileUpdate = (user: User) => {
-    if (user.email?.toLowerCase() === 'admin@registapp.uz') {
+    const em = (user.email || '').toLowerCase();
+    if (em === 'admin@registapp.uz' || em === 'registapp@gmail.com' || em === 'admin@registapp.online' || em === 'tulyaganovsaid@gmail.com') {
       user.firstName = 'Саид';
       user.lastName = 'Туляганов';
       user.role = 'Admin';
@@ -153,6 +156,8 @@ export default function App() {
       roleStr === 'admin' ||
       lowEmail === 'admin@registapp.uz' ||
       lowEmail === 'admin@registapp.online' ||
+      lowEmail === 'registapp@gmail.com' ||
+      lowEmail === 'tulyaganovsaid@gmail.com' ||
       currentUser.id === 'YmHbaNrbd5U6kGgotrsZdlT2RBP2'
     ) {
       const adminUser: User = {
@@ -227,6 +232,8 @@ export default function App() {
             currentUser.id === 'YmHbaNrbd5U6kGgotrsZdlT2RBP2' || 
             currentUser.email?.toLowerCase() === 'admin@registapp.uz' ||
             currentUser.email?.toLowerCase() === 'admin@registapp.online' ||
+            currentUser.email?.toLowerCase() === 'registapp@gmail.com' ||
+            currentUser.email?.toLowerCase() === 'tulyaganovsaid@gmail.com' ||
             currentUser.role === 'Admin'
               ? 'Admin'
               : currentUser.id === 'pUrYJVVb31RYKK3pXRTz4Ih0jgG3' ||
@@ -240,6 +247,8 @@ export default function App() {
             currentUser.id === 'YmHbaNrbd5U6kGgotrsZdlT2RBP2' ||
             currentUser.email?.toLowerCase() === 'admin@registapp.uz' ||
             currentUser.email?.toLowerCase() === 'admin@registapp.online' ||
+            currentUser.email?.toLowerCase() === 'registapp@gmail.com' ||
+            currentUser.email?.toLowerCase() === 'tulyaganovsaid@gmail.com' ||
             currentUser.id === 'pUrYJVVb31RYKK3pXRTz4Ih0jgG3' ||
             currentUser.role === 'Admin' ||
             currentUser.role === 'Operator' ||

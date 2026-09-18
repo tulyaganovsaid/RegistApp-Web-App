@@ -357,10 +357,10 @@ export default function LegalPage({
 
           <div className="flex items-center gap-3 shrink-0">
             <a
-              href="mailto:info@registapp.online"
+              href="mailto:registapp@gmail.com"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#7A9A3C] hover:bg-[#a2e635] text-black text-xs font-bold transition cursor-pointer"
             >
-              <span>info@registapp.online</span>
+              <span>registapp@gmail.com</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>

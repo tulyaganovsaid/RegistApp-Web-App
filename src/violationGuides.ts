@@ -82,7 +82,7 @@ The official portal of the main migration division. Provides up-to-date lists of
 • Official Tourism Portal of Uzbekistan (uzbekistan.travel):
 A state-managed travel information database containing comprehensive travel guides, interactive maps, customs declarations, safety advice, and cultural calendars.
 
-• RegistApp Legal & Technical Support (info@registapp.online):
+• RegistApp Legal & Technical Support (registapp@gmail.com):
 Direct electronic mail channel to reach tech support regarding account access, system errors, user cabinet fixes, or payment checking issues.
 
 ----------------------------------------------------------------------
@@ -173,7 +173,7 @@ Le portail officiel de la division principale des migrations. Fournit des listes
 • Portail Touristique Officiel de l'Ouzbékistan (uzbekistan.travel):
 Une base de données d'informations touristiques gérée par l'État, contenant des guides de voyage complets, des cartes interactives, des déclarations de douane, des conseils de sécurité et des calendriers culturels.
 
-• Support Technique et Juridique RegistApp (info@registapp.online):
+• Support Technique et Juridique RegistApp (registapp@gmail.com):
 Canal de messagerie électronique direct pour contacter l'assistance technique concernant l'accès au compte, les erreurs système, les corrections de l'espace utilisateur ou les problèmes de vérification des paiements.
 
 ----------------------------------------------------------------------
@@ -264,7 +264,7 @@ export const VIOLATION_GUIDE_RU = `UZBEKISTAN TOURIST GUIDELINE
 • Официальный туристический портал Узбекистана (uzbekistan.travel):
 Государственный информационный ресурс с гидами, картами, правилами безопасности, таможенными требованиями для въезжающих и календарем культурных мероприятий.
 
-• Служба поддержки RegistApp (info@registapp.online):
+• Служба поддержки RegistApp (registapp@gmail.com):
 Прямой адрес электронной почты технической поддержки для решения вопросов, связанных с работой личного кабинета, восстановлением доступа к анкетам или проверкой статуса платежей.
 
 ----------------------------------------------------------------------

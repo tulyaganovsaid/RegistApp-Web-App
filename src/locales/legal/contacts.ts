@@ -4,7 +4,7 @@ export const contactsContent: LegalLocaleContent = {
   ru: {
     slug: 'contacts',
     title: 'Контакты и официальные реквизиты оператора',
-    subtitle: 'Полные регистрационные данные юридического лица, служба поддержки и контакты аккредитованного оператора системы E-mehmon',
+    subtitle: 'Полные регистрационные данные юридического лица, служба поддержки и контакты оператора системы E-mehmon',
     lastUpdated: '17 сентября 2026 г.',
     tableOfContentsTitle: 'Оглавление раздела',
     sections: [
@@ -19,20 +19,20 @@ export const contactsContent: LegalLocaleContent = {
           'Идентификационный номер налогоплательщика (ИНН): 309 881 442;',
           'Код ОКЭД: 55200 (Деятельность средств размещения на период отпуска и прочих мест для временного проживания);',
           'Юридический и фактический адрес: 100128, Республика Узбекистан, г. Ташкент, Шайхантаурский район, ул. Каттакурган, д. 33;',
-          'Руководитель предприятия: Саид Туляганов (Email: admin@registapp.online).',
+          'Руководитель предприятия: Саид Туляганов (Email: registapp@gmail.com).',
         ],
       },
       {
         id: 'partner-hostel',
-        title: '2. Аккредитация в государственной системе E-mehmon',
+        title: '2. Деятельность в государственной системе E-mehmon',
         paragraphs: [
-          'Непосредственное внесение сведений в государственную информационную систему МВД РУз e-mehmon.uz и выпуск официальных QR-сертификатов осуществляется аккредитованным средством размещения туристов — Семейным предприятием «Jules Verne Hostel».',
+          'Непосредственное внесение сведений в государственную информационную систему МВД РУз e-mehmon.uz и выпуск официальных QR-сертификатов осуществляется средством размещения туристов — Семейным предприятием «Jules Verne Hostel».',
         ],
         bulletPoints: [
           'Объект размещения: Хостел «Jules Verne Hostel» (Семейное предприятие «Jules Verne Hostel»);',
           'Сертификат соответствия средства размещения: № UZ.SM.01.004.81923, выдан Комитетом по туризму Республики Узбекистан;',
           'Адрес фактического расположения хостела: г. Ташкент, 100128, Шайхантаурский р-н, ул. Каттакурган, д. 33;',
-          'Официальный статус: Аккредитованный оператор ведения реестра иностранных туристов в государственной системе E-mehmon.',
+          'Официальный статус: Оператор ведения реестра иностранных туристов в государственной системе E-mehmon.',
         ],
       },
       {
@@ -57,10 +57,10 @@ export const contactsContent: LegalLocaleContent = {
           'Наша служба заботы о туристах работает ежедневно для консультаций по правилам пребывания, статусу оформления заявок и выдаче QR-документов:',
         ],
         bulletPoints: [
-          'Единый телефон клиентской поддержки: +998 (71) 200-88-11 (многоканальный, с 08:00 до 22:00 UTC+5);',
-          'Email службы поддержки: info@registapp.online, support@registapp.uz;',
-          'Администрация сервиса: admin@registapp.online;',
-          'Email по вопросам персональных данных (DPO): info@registapp.online;',
+          'Единый телефон клиентской поддержки: +998 (77) 664-25-03 (многоканальный, с 08:00 до 22:00 UTC+5);',
+          'Email службы поддержки: registapp@gmail.com;',
+          'Администрация сервиса: registapp@gmail.com;',
+          'Email по вопросам персональных данных (DPO): registapp@gmail.com;',
           'Официальный Telegram-бот поддержки: @RegistAppUzBot;',
           'Интерактивный ИИ-консультант: доступен 24/7 на всех экранах приложения для мгновенных правовых ответов по законам РУз.',
         ],
@@ -91,7 +91,7 @@ export const contactsContent: LegalLocaleContent = {
   en: {
     slug: 'contacts',
     title: 'Contacts and Legal Requisites of the Operator',
-    subtitle: 'Comprehensive corporate registration data, customer assistance channels, and certified E-mehmon operator details',
+    subtitle: 'Comprehensive corporate registration data, customer assistance channels, and E-mehmon operator details',
     lastUpdated: 'September 17, 2026',
     tableOfContentsTitle: 'Table of Contents',
     sections: [
@@ -106,20 +106,20 @@ export const contactsContent: LegalLocaleContent = {
           'Tax Identification Number (TIN): 309 881 442;',
           'Statutory Activity (NACE): 55200 (Holiday and other short-stay accommodation activities);',
           'Registered Office: 33 Kattakurgan Street, Shaykhantakhur District, Tashkent 100128, Republic of Uzbekistan;',
-          'Managing Director: Said Tulyaganov (Email: admin@registapp.online).',
+          'Managing Director: Said Tulyaganov (Email: registapp@gmail.com).',
         ],
       },
       {
         id: 'partner-hostel',
-        title: '2. Certified E-mehmon Operator (Jules Verne Hostel)',
+        title: '2. E-mehmon System Operations (Jules Verne Hostel)',
         paragraphs: [
-          'All statutory entries into the Ministry of Internal Affairs system (emehmon.uz) and issuance of verified QR migration documents are executed by our accredited tourist accommodation facility — Family Enterprise "Jules Verne Hostel":',
+          'All statutory entries into the Ministry of Internal Affairs system (emehmon.uz) and issuance of verified QR migration documents are executed by our tourist accommodation facility — Family Enterprise "Jules Verne Hostel":',
         ],
         bulletPoints: [
           'Accommodation Facility: Jules Verne Hostel (Family Enterprise "Jules Verne Hostel");',
           'Tourism Accommodation Certificate: No. UZ.SM.01.004.81923 issued by the Tourism Committee of Uzbekistan;',
           'Facility Location: 33 Kattakurgan St, Shaykhantakhur District, Tashkent 100128, Uzbekistan;',
-          'Statutory Role: Accredited E-mehmon operator for foreign visitor recording.',
+          'Statutory Role: E-mehmon operator for foreign visitor recording.',
         ],
       },
       {
@@ -143,10 +143,10 @@ export const contactsContent: LegalLocaleContent = {
           'Our support team is available daily to assist international visitors with compliance questions and order updates:',
         ],
         bulletPoints: [
-          'Support Phone: +998 (71) 200-88-11 (Multi-line, 08:00 – 22:00 UTC+5);',
-          'Support Email: info@registapp.online, support@registapp.uz;',
-          'Administration Email: admin@registapp.online;',
-          'Privacy Office (DPO): info@registapp.online;',
+          'Support Phone: +998 (77) 664-25-03 (Multi-line, 08:00 – 22:00 UTC+5);',
+          'Support Email: registapp@gmail.com;',
+          'Administration Email: registapp@gmail.com;',
+          'Privacy Office (DPO): registapp@gmail.com;',
           'Official Telegram Assistant: @RegistAppUzBot;',
           'AI Legal Consultant: available 24/7 in-app on all dashboards.',
         ],
@@ -177,7 +177,7 @@ export const contactsContent: LegalLocaleContent = {
   fr: {
     slug: 'contacts',
     title: 'Coordonnées et Mentions Légales de l\'Opérateur',
-    subtitle: 'Données d\'immatriculation, service d\'assistance aux touristes et opérateur accrédité E-mehmon',
+    subtitle: 'Données d\'immatriculation, service d\'assistance aux touristes et opérateur E-mehmon',
     lastUpdated: '17 septembre 2026',
     tableOfContentsTitle: 'Sommaire',
     sections: [
@@ -191,12 +191,12 @@ export const contactsContent: LegalLocaleContent = {
           'Raison sociale : Entreprise Familiale « Jules Verne Hostel » (FE « Jules Verne Hostel ») ;',
           'Numéro d\'identification fiscale (NIF) : 309 881 442 ;',
           'Siège social : 33 rue Kattakourgan, district de Shaykhantakhur, Tachkent 100128, Ouzbékistan ;',
-          'Directeur : Saïd Toulyaganov (admin@registapp.online).',
+          'Directeur : Saïd Toulyaganov (registapp@gmail.com).',
         ],
       },
       {
         id: 'partner-hostel',
-        title: '2. Établissement accrédité E-mehmon (Jules Verne Hostel)',
+        title: '2. Enregistrement dans le système E-mehmon (Jules Verne Hostel)',
         paragraphs: [
           'L\'enregistrement officiel dans le système gouvernemental E-mehmon est opéré directement par l\'Entreprise Familiale « Jules Verne Hostel » (certificat d\'hébergement touristique n° UZ.SM.01.004.81923).',
         ],
@@ -205,7 +205,7 @@ export const contactsContent: LegalLocaleContent = {
         id: 'support-channels',
         title: '3. Canaux d\'assistance et contacts',
         paragraphs: [
-          'Assistance téléphonique : +998 (71) 200-88-11. Courriel support : info@registapp.online, support@registapp.uz. Délégué DPO : info@registapp.online.',
+          'Assistance téléphonique : +998 (77) 664-25-03. Courriel support : registapp@gmail.com. Délégué DPO : registapp@gmail.com.',
         ],
       },
       {

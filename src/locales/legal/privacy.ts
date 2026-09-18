@@ -20,8 +20,8 @@ export const privacyContent: LegalLocaleContent = {
           'Полное наименование: Семейное предприятие «Jules Verne Hostel» (СП «Jules Verne Hostel»)',
           'Юридический и фактический адрес: Республика Узбекистан, 100128, г. Ташкент, Шайхантаурский район, ул. Каттакурган, д. 33',
           'ИНН / Регистрационный номер: 309 881 442',
-          'Служба защиты персональных данных (DPO): info@registapp.online',
-          'Официальный телефон поддержки: +998 (71) 200-88-11 / 1173 (Туристическая полиция)',
+          'Служба защиты персональных данных (DPO): registapp@gmail.com',
+          'Официальный телефон поддержки: +998 (77) 664-25-03 / 1173 (Туристическая полиция)',
         ],
       },
       {
@@ -126,7 +126,7 @@ export const privacyContent: LegalLocaleContent = {
         title: '9. Порядок отзыва согласия на обработку',
         paragraphs: [
           'Субъект персональных данных вправе в любой момент отозвать свое согласие на обработку персональных данных.',
-          'Для отзыва согласия необходимо направить электронное заявление в свободной форме с адреса электронной почты, указанного при регистрации, на официальный адрес Службы защиты данных: info@registapp.online.',
+          'Для отзыва согласия необходимо направить электронное заявление в свободной форме с адреса электронной почты, указанного при регистрации, на официальный адрес Службы защиты данных: registapp@gmail.com.',
           'В заявлении необходимо указать: фамилию, имя, номер паспорта и перечень отзываемых данных. Оператор обязуется рассмотреть заявление и прекратить обработку в срок до 10 рабочих дней, за исключением сведений, обязательное хранение которых предписано миграционным законодательством РУз.',
         ],
       },
@@ -138,7 +138,7 @@ export const privacyContent: LegalLocaleContent = {
           'Срок рассмотрения запроса субъекта персональных данных составляет не более 10 (десяти) рабочих дней с момента официальной регистрации обращения.',
         ],
         bulletPoints: [
-          'Email для обращений: info@registapp.online (копия: admin@registapp.online)',
+          'Email для обращений: registapp@gmail.com',
           'Почтовый адрес для письменных претензий: 100128, Узбекистан, г. Ташкент, Шайхантаурский р-н, ул. Каттакурган, 33 (с пометкой «Защита персональных данных»)',
           'Уполномоченный государственный орган по защите персональных данных: Государственный центр персонализации при Кабинете Министров Республики Узбекистан.',
         ],
@@ -164,8 +164,8 @@ export const privacyContent: LegalLocaleContent = {
           'Entity Name: Family Enterprise "Jules Verne Hostel" (FE "Jules Verne Hostel")',
           'Registered Office: 33 Kattakurgan Street, Shaykhantakhur District, Tashkent 100128, Republic of Uzbekistan',
           'TIN / Company Registration: 309 881 442',
-          'Data Protection Officer (DPO): info@registapp.online',
-          'Support Phone: +998 (71) 200-88-11 / Tourist Police Hotline: 1173',
+          'Data Protection Officer (DPO): registapp@gmail.com',
+          'Support Phone: +998 (77) 664-25-03 / Tourist Police Hotline: 1173',
         ],
       },
       {
@@ -219,7 +219,7 @@ export const privacyContent: LegalLocaleContent = {
           'The Operator does not sell or disclose personal data to third parties, except for designated authorized entities necessary to fulfill the registration service:',
         ],
         bulletPoints: [
-          'Family Enterprise "Jules Verne Hostel" — accredited operator account holder in the state E-mehmon system;',
+          'Family Enterprise "Jules Verne Hostel" — operator account holder in the state E-mehmon system;',
           'Ministry of Internal Affairs of Uzbekistan (General Department of Migration and Citizenship) — state controller and owner of the e-mehmon.uz registry;',
           'Authorized Payment Gateway Provider — strictly for transaction authorization and fraud prevention;',
           'Google Cloud Platform (Google LLC) — secure cloud database and hosting provider complying with SOC 2 and ISO 27001 standards.',
@@ -268,7 +268,7 @@ export const privacyContent: LegalLocaleContent = {
         id: 'consent-withdrawal',
         title: '9. Procedure for Withdrawing Consent',
         paragraphs: [
-          'You may withdraw your consent to data processing at any time by sending an email from your registered email address to info@registapp.online.',
+          'You may withdraw your consent to data processing at any time by sending an email from your registered email address to registapp@gmail.com.',
           'The request must state your full name, passport number, and scope of withdrawal. The Operator will process the withdrawal within 10 business days, subject to mandatory statutory migration archive requirements.',
         ],
       },
@@ -280,7 +280,7 @@ export const privacyContent: LegalLocaleContent = {
           'Response time: within 10 business days of official submission.',
         ],
         bulletPoints: [
-          'Privacy Office Email: info@registapp.online',
+          'Privacy Office Email: registapp@gmail.com',
           'Postal Address: 33 Kattakurgan St, Shaykhantakhur District, Tashkent 100128, Uzbekistan (Attn: Data Protection Officer)',
           'Supervisory Authority: State Personalization Centre under the Cabinet of Ministers of the Republic of Uzbekistan.',
         ],
@@ -306,8 +306,8 @@ export const privacyContent: LegalLocaleContent = {
           'Raison sociale : Entreprise Familiale « Jules Verne Hostel » (FE « Jules Verne Hostel »)',
           'Adresse : 33 rue Kattakourgan, district de Shaykhantakhur, Tachkent 100128, Ouzbékistan',
           'Numéro d\'immatriculation : 309 881 442',
-          'Délégué à la protection des données : info@registapp.online',
-          'Téléphone d\'assistance : +998 (71) 200-88-11 / Police touristique : 1173',
+          'Délégué à la protection des données : registapp@gmail.com',
+          'Téléphone d\'assistance : +998 (77) 664-25-03 / Police touristique : 1173',
         ],
       },
       {
@@ -354,7 +354,7 @@ export const privacyContent: LegalLocaleContent = {
           'Les destinataires autorisés comprennent :',
         ],
         bulletPoints: [
-          'L\'Entreprise Familiale « Jules Verne Hostel » en tant qu\'opérateur accrédité du système E-mehmon ;',
+          'L\'Entreprise Familiale « Jules Verne Hostel » en tant qu\'opérateur du système E-mehmon ;',
           'Le Ministère de l\'Intérieur de la République d\'Ouzbékistan (Direction générale des migrations) ;',
           'Le prestataire de services de paiement sécurisé ;',
           'Google Cloud Platform (infrastructure d\'hébergement sécurisée certifiée ISO 27001).',
@@ -385,14 +385,14 @@ export const privacyContent: LegalLocaleContent = {
         id: 'consent-withdrawal',
         title: '9. Modalités de retrait du consentement',
         paragraphs: [
-          'Le consentement peut être retiré à tout moment par courriel adressé à info@registapp.online avec traitement sous 10 jours ouvrés.',
+          'Le consentement peut être retiré à tout moment par courriel adressé à registapp@gmail.com avec traitement sous 10 jours ouvrés.',
         ],
       },
       {
         id: 'contact-operator',
         title: '10. Contact et réclamations',
         paragraphs: [
-          'Courriel DPO : info@registapp.online. Adresse postale : 33 rue Kattakourgan, district de Shaykhantakhur, Tachkent 100128, Ouzbékistan. Autorité de contrôle : Centre national de personnalisation d\'Ouzbékistan.',
+          'Courriel DPO : registapp@gmail.com. Adresse postale : 33 rue Kattakourgan, district de Shaykhantakhur, Tachkent 100128, Ouzbékistan. Autorité de contrôle : Centre national de personnalisation d\'Ouzbékistan.',
         ],
       },
     ],

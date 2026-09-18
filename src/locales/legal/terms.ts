@@ -94,7 +94,7 @@ export const termsContent: LegalLocaleContent = {
         id: 'disputes',
         title: '8. Порядок разрешения споров',
         paragraphs: [
-          'Все споры и разногласия стороны стремятся урегулировать путем переговоров через службу поддержки info@registapp.online.',
+          'Все споры и разногласия стороны стремятся урегулировать путем переговоров через службу поддержки registapp@gmail.com.',
           'При недостижении согласия спор передается на рассмотрение в судебные органы по месту нахождения Исполнителя в соответствии с материальным и процессуальным правом Республики Узбекистан.',
         ],
       },
@@ -174,7 +174,7 @@ export const termsContent: LegalLocaleContent = {
         id: 'disputes',
         title: '8. Governing Law and Jurisdiction',
         paragraphs: [
-          'This agreement is governed by the laws of the Republic of Uzbekistan. Amicable dispute resolution is handled via info@registapp.online.',
+          'This agreement is governed by the laws of the Republic of Uzbekistan. Amicable dispute resolution is handled via registapp@gmail.com.',
         ],
       },
     ],
@@ -218,7 +218,7 @@ export const termsContent: LegalLocaleContent = {
         id: 'disputes',
         title: '5. Droit applicable et réclamations',
         paragraphs: [
-          'Tout différend est soumis au droit de la République d\'Ouzbékistan. Contact : info@registapp.online.',
+          'Tout différend est soumis au droit de la République d\'Ouzbékistan. Contact : registapp@gmail.com.',
         ],
       },
     ],

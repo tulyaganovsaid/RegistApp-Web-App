@@ -99,8 +99,8 @@ service cloud.firestore {
     match /tourist_news/{newsId} {
       // News is publicly readable for tourists and clients
       allow read: if true;
-      // Only Admins can upload, modify, or delete news
-      allow write: if isAdmin();
+      // Admins and authorized staff can upload, modify, or delete news
+      allow write: if isAdmin() || isStaff();
     }
 
     // 6. Consents collection rules

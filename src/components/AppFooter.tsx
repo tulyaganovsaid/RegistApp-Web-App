@@ -62,10 +62,10 @@ export default function AppFooter({
 
   // Multi-language operator requisites line
   const operatorRequisitesText = {
-    ru: 'Исполнитель услуги: Семейное предприятие «Jules Verne Hostel» (ИНН: 309 881 442, Сертификат соответствия средства размещения № UZ.SM.01.004.81923) • 100128, г. Ташкент, Шайхантаурский р-н, ул. Каттакурган, д. 33 • Тел: +998 (71) 200-88-11 • Email: info@registapp.online, admin@registapp.online',
-    en: 'Service Provider: Family Enterprise "Jules Verne Hostel" (TIN: 309 881 442, Accommodation Certificate No. UZ.SM.01.004.81923) • 33 Kattakurgan St, Shaykhantakhur District, Tashkent 100128, Uzbekistan • Tel: +998 (71) 200-88-11 • Email: info@registapp.online, admin@registapp.online',
-    fr: 'Prestataire de services : Entreprise Familiale « Jules Verne Hostel » (NIF : 309 881 442, Certificat d\'hébergement n° UZ.SM.01.004.81923) • 33 rue Kattakourgan, district de Shaykhantakhur, Tachkent 100128, Ouzbékistan • Tél : +998 (71) 200-88-11 • Courriel : info@registapp.online, admin@registapp.online',
-  }[currentLanguage] || 'Исполнитель услуги: Семейное предприятие «Jules Verne Hostel» (ИНН: 309 881 442, Сертификат соответствия средства размещения № UZ.SM.01.004.81923) • 100128, г. Ташкент, Шайхантаурский р-н, ул. Каттакурган, д. 33 • Тел: +998 (71) 200-88-11 • Email: info@registapp.online, admin@registapp.online';
+    ru: 'Исполнитель услуги: Семейное предприятие «Jules Verne Hostel» (ИНН: 309 881 442, Сертификат соответствия средства размещения № UZ.SM.01.004.81923) • 100128, г. Ташкент, Шайхантаурский р-н, ул. Каттакурган, д. 33 • Тел: +998 (77) 664-25-03 • Email: registapp@gmail.com',
+    en: 'Service Provider: Family Enterprise "Jules Verne Hostel" (TIN: 309 881 442, Accommodation Certificate No. UZ.SM.01.004.81923) • 33 Kattakurgan St, Shaykhantakhur District, Tashkent 100128, Uzbekistan • Tel: +998 (77) 664-25-03 • Email: registapp@gmail.com',
+    fr: 'Prestataire de services : Entreprise Familiale « Jules Verne Hostel » (NIF : 309 881 442, Certificat d\'hébergement n° UZ.SM.01.004.81923) • 33 rue Kattakourgan, district de Shaykhantakhur, Tachkent 100128, Ouzbékistan • Tél : +998 (77) 664-25-03 • Courriel : registapp@gmail.com',
+  }[currentLanguage] || 'Исполнитель услуги: Семейное предприятие «Jules Verne Hostel» (ИНН: 309 881 442, Сертификат соответствия средства размещения № UZ.SM.01.004.81923) • 100128, г. Ташкент, Шайхантаурский р-н, ул. Каттакурган, д. 33 • Тел: +998 (77) 664-25-03 • Email: registapp@gmail.com';
 
   return (
     <footer
@@ -192,13 +192,6 @@ export default function AppFooter({
           <div>
             <p className="font-medium text-zinc-400">
               © {new Date().getFullYear()} Семейное предприятие «Jules Verne Hostel» • RegistApp (Ташкент, registapp.online)
-            </p>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
-              {currentLanguage === 'ru'
-                ? 'Аккредитованный партнер системы E-mehmon (emehmon.uz) • МВД РУз'
-                : currentLanguage === 'fr'
-                ? 'Partenaire accrédité du système national E-mehmon (emehmon.uz) • Ministère de l\'Intérieur'
-                : 'Accredited Partner in the State E-mehmon System (emehmon.uz) • Ministry of Internal Affairs'}
             </p>
           </div>
 

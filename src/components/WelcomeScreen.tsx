@@ -140,13 +140,19 @@ export default function WelcomeScreen({ currentLanguage, onLoginSuccess, setLang
           {/* Tourist Police 1173 Hotline Quick link */}
           <a
             href="tel:1173"
-            title={currentLanguage === 'ru' ? 'Горячая линия туристической полиции Узбекистана 1173' : 'Tourist Police 1173'}
+            title={
+              currentLanguage === 'ru'
+                ? 'Горячая линия туристической полиции Узбекистана 1173'
+                : currentLanguage === 'fr'
+                ? 'Ligne d’assistance de la police touristique d’Ouzbékistan 1173'
+                : 'Uzbekistan Tourist Police Hotline 1173'
+            }
             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#7A9A3C]/30 bg-[#7A9A3C]/10 text-xs text-[#90B24A] hover:bg-[#7A9A3C]/20 transition"
           >
             <PhoneCall className="h-3.5 w-3.5" />
             <span className="font-mono font-bold">1173</span>
             <span className="text-[10px] text-[#9AA1A0]">
-              {currentLanguage === 'ru' ? 'Туристическая полиция' : 'Tourist Police'}
+              {currentLanguage === 'ru' ? 'Туристическая полиция' : currentLanguage === 'fr' ? 'Police touristique' : 'Tourist Police'}
             </span>
           </a>
 

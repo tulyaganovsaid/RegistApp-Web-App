@@ -68,7 +68,7 @@ export const cookiesContent: LegalLocaleContent = {
         id: 'contacts',
         title: '6. Вопросы и обратная связь',
         paragraphs: [
-          'Если у вас возникли вопросы относительно использования файлов cookie на нашем сайте, вы можете направить запрос в службу технической поддержки: info@registapp.online.',
+          'Если у вас возникли вопросы относительно использования файлов cookie на нашем сайте, вы можете направить запрос в службу технической поддержки: registapp@gmail.com.',
         ],
       },
     ],
@@ -124,7 +124,7 @@ export const cookiesContent: LegalLocaleContent = {
         id: 'updates',
         title: '5. Policy Updates and Inquiries',
         paragraphs: [
-          'Changes to this policy will be posted on this page. For questions, contact info@registapp.online.',
+          'Changes to this policy will be posted on this page. For questions, contact registapp@gmail.com.',
         ],
       },
     ],

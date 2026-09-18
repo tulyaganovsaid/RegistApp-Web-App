@@ -94,6 +94,14 @@ export interface ConsentRecord {
   userEmail?: string;
 }
 
+export interface TouristNewsTranslation {
+  title: string;
+  summary?: string;
+  body: string;
+  category?: string;
+  author?: string;
+}
+
 export interface TouristNews {
   id: string;
   title: string;
@@ -105,6 +113,21 @@ export interface TouristNews {
   isFeatured?: boolean; // Main / Top 3 news flag
   author?: string;
   viewsCount?: number;
+  translations?: Partial<Record<LanguageCode, TouristNewsTranslation>>;
+}
+
+export function getLocalizedNews(item: TouristNews, lang: LanguageCode): TouristNews {
+  if (!item) return item;
+  const translation = item.translations?.[lang];
+  if (!translation) return item;
+  return {
+    ...item,
+    title: translation.title || item.title,
+    summary: translation.summary || item.summary,
+    body: translation.body || item.body,
+    category: translation.category || item.category,
+    author: translation.author || item.author,
+  };
 }
 
 export interface ChatMessage {
@@ -112,6 +135,8 @@ export interface ChatMessage {
   sender: 'user' | 'ai';
   text: string;
   timestamp: string; // HH:MM
+  queryKey?: string;
+  originalQuery?: string;
 }
 
 export type LanguageCode = 'en' | 'ru' | 'fr';

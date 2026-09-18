@@ -3,6 +3,7 @@ import { MessageSquare, Send, X, Bot, User, Sparkles, Scale, PhoneCall, AlertTri
 import { ChatMessage, LanguageCode, UserRole } from '../types';
 import { getConfig, getLegalKnowledgeBase } from '../db';
 import { translations } from '../translations';
+import { QUICK_PILLS_BY_LANG, WELCOME_GREETINGS, translateMessage, findMatchingTopic } from '../utils/chatLocalization';
 
 interface SupportChatProps {
   currentLanguage: LanguageCode;
@@ -61,16 +62,16 @@ export default function SupportChat({
     }
   }, [userRole, defaultOpen, isStaff]);
 
-  const handleSendMessageRef = useRef<(textToSend?: string) => Promise<void>>(async () => {});
+  const handleSendMessageRef = useRef<(textToSend?: string, pillId?: string) => Promise<void>>(async () => {});
 
   // Listen to external triggers to open support chat (with optional pre-set query)
   useEffect(() => {
     const handleOpen = (e?: Event) => {
       setIsOpen(true);
-      const customEvt = e as CustomEvent<{ query?: string }>;
+      const customEvt = e as CustomEvent<{ query?: string; pillId?: string }>;
       if (customEvt?.detail?.query) {
         setTimeout(() => {
-          handleSendMessageRef.current(customEvt.detail.query);
+          handleSendMessageRef.current(customEvt.detail.query, customEvt.detail.pillId);
         }, 150);
       }
     };
@@ -78,62 +79,75 @@ export default function SupportChat({
     return () => window.removeEventListener('open-support-chat', handleOpen);
   }, []);
 
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
+
   // Quick prompt topic pills for the visitor
-  const quickPills = currentLanguage === 'ru'
-    ? [
-        { label: '⏱️ Срок 3 рабочих дней', query: 'Как исчисляется срок 3 рабочих дней для регистрации в Узбекистане?' },
-        { label: '📄 Какие документы нужны?', query: 'Какие документы нужны для оформления туристической регистрации?' },
-        { label: '💰 Тарифы и способы оплаты', query: 'Какова стоимость регистрации в сутки и в каких валютах можно оплатить?' },
-        { label: '⚖️ Штрафы по ст. 224 КоАП', query: 'Какие штрафы предусмотрены за просрочку регистрации по ст. 224 КоАП РУз?' },
-        { label: '🏛️ Система e-mehmon и QR-код', query: 'Что такое система e-mehmon и имеет ли электронный QR-код юридическую силу?' },
-        { label: '🏕️ Палатки, кемпинг и юрты', query: 'Как регистрироваться туристам при проживании в палатках или юртовых лагерях?' }
-      ]
-    : currentLanguage === 'fr'
-    ? [
-        { label: '⏱️ Règle des 3 jours ouvrables', query: 'Comment fonctionne la règle des 3 jours ouvrables pour l\'enregistrement ?' },
-        { label: '📄 Documents requis', query: 'Quels documents dois-je fournir pour mon enregistrement ?' },
-        { label: '💰 Tarifs et paiement', query: 'Quels sont les tarifs par jour et devises acceptées ?' },
-        { label: '⚖️ Amendes (Art. 224)', query: 'Quelles sont les sanctions en cas de dépassement sous l\'article 224 ?' },
-        { label: '🏛️ e-mehmon et QR code', query: 'Quelle est la valeur juridique de l\'attestation e-mehmon avec code QR ?' }
-      ]
-    : [
-        { label: '⏱️ 3-Business-Day Rule', query: 'How is the 3-business-day registration deadline calculated in Uzbekistan?' },
-        { label: '📄 Required Documents', query: 'What documents are required to register foreign tourists?' },
-        { label: '💰 Rates & Payment', query: 'What are the daily registration fees and accepted currencies?' },
-        { label: '⚖️ Fines under Art. 224', query: 'What are the penalties for overstaying under Article 224?' },
-        { label: '🏛️ e-mehmon QR Certificate', query: 'Does the electronic certificate from e-mehmon have full legal validity?' },
-        { label: '🏕️ Camping & Yurt Stays', query: 'How does registration work for independent travelers camping in tents?' }
-      ];
+  const quickPills = QUICK_PILLS_BY_LANG[currentLanguage] || QUICK_PILLS_BY_LANG.en;
 
-  // Initialize or update with greeting based on language, asking visitor what interests them
+  // Initialize or translate ALL messages in chat history when language switches!
   useEffect(() => {
-    const greetings: Record<LanguageCode, string> = {
-      ru: "Здравствуйте! Я официальный ИИ-консультант RegistApp по миграционному законодательству и туризму в Узбекистане.\n\nЧто именно вас интересует? Вы можете задать любой вопрос или нажать на интересующую тему ниже:",
-      en: "Hello! I am your official RegistApp AI assistant for tourist registration and immigration rules in Uzbekistan.\n\nWhat are you interested in today? Feel free to ask any question or select a quick topic below:",
-      fr: "Bonjour ! Je suis l'assistant IA officiel de RegistApp pour l'enregistrement et la réglementation en Ouzbékistan.\n\nQu'est-ce qui vous intéresse aujourd'hui ? Posez votre question ou sélectionnez un thème ci-dessous :"
-    };
-
+    // 1. Immediately update welcome message and predefined pill messages locally
     setMessages(prev => {
-      const welcomeExists = prev.some(m => m.id === 'welcome-msg');
-      if (!welcomeExists) {
+      if (prev.length === 0) {
         return [
           {
             id: 'welcome-msg',
             sender: 'ai',
-            text: greetings[currentLanguage],
+            text: WELCOME_GREETINGS[currentLanguage],
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          },
-          ...prev
-        ];
-      } else {
-        return prev.map(m => {
-          if (m.id === 'welcome-msg') {
-            return { ...m, text: greetings[currentLanguage] };
           }
-          return m;
-        });
+        ];
       }
+      return prev.map(m => {
+        const translatedText = translateMessage(m, currentLanguage);
+        return {
+          ...m,
+          text: translatedText
+        };
+      });
     });
+
+    // 2. Translate any custom questions and AI replies via the backend translation engine
+    const translateExistingChat = async () => {
+      try {
+        const currentMessages = messagesRef.current;
+        if (!currentMessages || currentMessages.length === 0) return;
+        const hasCustomAiResponses = currentMessages.some(m => m.sender === 'ai' && m.id !== 'welcome-msg' && !m.queryKey);
+        if (!hasCustomAiResponses) return;
+
+        const res = await fetch('/api/support/translate-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: currentMessages,
+            targetLanguage: currentLanguage,
+            legalKnowledgeBase: getLegalKnowledgeBase()
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.messages) && data.messages.length > 0) {
+            const transMap = new Map<string, string>(
+              data.messages.map((m: { id: string; text: string }) => [m.id, String(m.text || '')])
+            );
+            setMessages(prev =>
+              prev.map(m => {
+                const newText = transMap.get(m.id);
+                if (typeof newText === 'string' && newText && m.sender === 'ai' && m.id !== 'welcome-msg' && !m.queryKey) {
+                  return { ...m, text: newText };
+                }
+                return m;
+              })
+            );
+          }
+        }
+      } catch (err) {
+        console.error('Failed to translate chat history:', err);
+      }
+    };
+
+    translateExistingChat();
   }, [currentLanguage]);
 
   // Handle auto-scroll
@@ -142,86 +156,34 @@ export default function SupportChat({
   }, [messages, isTyping]);
 
   const generateAIResponseFallback = (userText: string): string => {
-    const text = userText.toLowerCase();
-
-    // English responses
-    if (currentLanguage === 'en') {
-      if (text.includes('visa')) {
-        return "Uzbekistan offers dual entries. If you choose 'Visa Country', you must upload (1) Passport Scan, (2) Arrival Border Stamp Scan, and (3) Visas page for verification. Registration rates are the same for all countries ($5 USD/EUR, 500 RUB or 70000 UZS daily).";
-      }
-      if (text.includes('day') || text.includes('period') || text.includes('how long') || text.includes('3 day') || text.includes('deadline')) {
-        return "📌 **Pursuant to Decree No. 433 of the Cabinet of Ministers of Uzbekistan**, mandatory registration must be completed within **3 business days** of crossing the border. Sundays and official holidays are excluded.";
-      }
-      if (text.includes('fine') || text.includes('penalty') || text.includes('violation') || text.includes('law') || text.includes('224')) {
-        return "⚖️ Overstaying without registration constitutes an administrative violation under **Article 224 of the Administrative Code** (fines from 5 to 20 Base Calculated Units). Contact Tourist Police at **1173** if you need emergency assistance.";
-      }
-      if (text.includes('pay') || text.includes('card') || text.includes('price') || text.includes('cost') || text.includes('rate')) {
-        return "💰 The daily registration rates are: USD $5/day, EUR €5/day, RUB 500/day, UZS 70,000/day. Payments are made via direct transfer to our matching bank card.";
-      }
-      if (text.includes('emehmon') || text.includes('e-mehmon') || text.includes('qr')) {
-        return "🏛️ e-Mehmon is the official registration system of Uzbekistan (emehmon.uz). The generated electronic PDF certificate with QR code has full legal validity at airport and border checkpoints.";
-      }
-      if (text.includes('different') || text.includes('hotel') || text.includes('apartment') || text.includes('flat') || text.includes('stay') || text.includes('situation')) {
-        return "ℹ️ **Guidelines for Uzbekistan Registration by Accommodation Type:**\n\n1. **Hotel, hostel, sanatorium**: Registered automatically by the staff upon check-in via e-mehmon. No service needed.\n2. **Rented apartment / private house / friends**: Must be registered by the host citizen or property owner via my.gov.uz or migration authorities.\n3. **Stay longer than 30 days**: Must register directly in-person with the district Migration Department (OVViOG / Police).\n4. **Independent tourists (tents, camper vans, vehicle overnights)**: This is registered through our RegistApp tourist service.\n\nIf you have a unique case (medical stay, business mission, transit), feel free to provide details and we will guide you!";
-      }
-      return "Thank you for asking! For foreign tourists, registration in Uzbekistan is required within 3 business days. Tourist Police Helpline: **1173**.";
+    const topic = findMatchingTopic(userText);
+    if (topic) {
+      return topic.answers[currentLanguage];
     }
 
-    // Russian responses
     if (currentLanguage === 'ru') {
-      if (text.includes('случай') || text.includes('друг') || text.includes('квартир') || text.includes('родствен') || text.includes('30') || text.includes('отель')) {
-        return "ℹ️ **Разъяснение по способам регистрации в Узбекистане:**\n\n1. **Отели, хостелы, санатории**: регистрацию проводит администрация объекта в день заезда (вам оформлять ничего не нужно, подтверждение выдает отель).\n2. **Квартира, частный дом, у знакомых**: регистрацию обязан оформить собственник жилья или принимающая сторона через my.gov.uz либо в органах внутренних дел.\n3. **Пребывание свыше 30 дней**: оформляется исключительно через районные подразделения миграции МВД (ОВВиОГ).\n4. **Палатка, автодом, транспорт для ночлега**: статус самостоятельного туриста. Это именно та услуга, которую предоставляет наш сервис RegistApp.\n\nЕсли у вас иной особый случай (лечение, длительная командировка, транзит), напишите подробности, и мы подскажем точный алгоритм!";
-      }
-      if (text.includes('виз') || text.includes('виза')) {
-        return "Для граждан визовых стран требуются 3 документа: скан разворота паспорта, скан въездного штампа и скан самой визы в Узбекистан. Тариф единый для всех категорий.";
-      }
-      if (text.includes('дн') || text.includes('день') || text.includes('срок') || text.includes('когда') || text.includes('3 дня') || text.includes('три дня')) {
-        return "📌 Согласно **Постановлению Кабинета Министров РУз № 433**, иностранные граждане обязаны оформить регистрацию в течение **3 рабочих дней** со дня въезда в страну. Воскресенья и праздничные дни в этот срок не включаются.";
-      }
-      if (text.includes('штраф') || text.includes('закон') || text.includes('наруш') || text.includes('224')) {
-        return "⚖️ Нарушение правил пребывания влечет административную ответственность по **статье 224 КоАП РУз** (штраф от 5 до 20 БРВ, либо административное выдворение). Горячая линия туристической полиции: **1173**.";
-      }
-      if (text.includes('оплат') || text.includes('карт') || text.includes('цен') || text.includes('руб') || text.includes('сум') || text.includes('тариф')) {
-        return "💰 Тарифы за оформление: 70 000 UZS / 500 RUB / 5 USD / 5 EUR за сутки. Оплата производится переводом на карту выбранной валюты с указанием номера квитанции.";
-      }
-      if (text.includes('e-mehmon') || text.includes('emehmon') || text.includes('qr') || text.includes('кьюар')) {
-        return "🏛️ Система e-mehmon (emehmon.uz) — официальный государственный реестр. Электронный листок с QR-кодом имеет полную юридическую силу для пограничной службы и органов внутренних дел.";
-      }
-      if (text.includes('палат') || text.includes('кемпинг') || text.includes('юрт')) {
-        return "🏕️ Самостоятельные туристы, путешествующие с палатками или в юртах, регистрируются со статусом «Свободный турист» с оплатой туристского сбора за каждый день пребывания.";
-      }
-      return "Спасибо за вопрос! Напоминаем, что регистрация оформляется в течение 3 рабочих дней со дня въезда. Единый номер туристической полиции: **1173**.";
+      return "Спасибо за вопрос! Напоминаем, что регистрация оформляется в течение 3 рабочих дней со дня въезда в Узбекистан. Единый номер туристической полиции: **1173**.";
     }
-
-    // French responses
     if (currentLanguage === 'fr') {
-      if (text.includes('visa')) {
-        return "L'Ouzbékistan propose des régimes avec et sans visa. Si vous sélectionnez 'Pays avec visa', vous devez télécharger votre passeport, tampon d'entrée et visa. Le tarif reste identique ($5/jour).";
-      }
-      if (text.includes('jour') || text.includes('durée') || text.includes('delai') || text.includes('temps') || text.includes('3')) {
-        return "📌 Selon le Décret n° 433, l'enregistrement obligatoire doit être effectué dans les **3 jours ouvrables** suivant l'entrée en Ouzbékistan.";
-      }
-      if (text.includes('amende') || text.includes('loi') || text.includes('infraction') || text.includes('224')) {
-        return "⚖️ Le non-respect du délai entraîne des amendes selon l'article 224 du code administratif. Numéro d'assistance de la police touristique : **1173**.";
-      }
-      if (text.includes('payer') || text.includes('prix') || text.includes('carte') || text.includes('cout')) {
-        return "💰 Le tarif journalier est de : 5 USD, 5 EUR, 500 RUB ou 70 000 UZS par jour. Paiement par virement sur notre compte de paiement.";
-      }
-      return "Merci pour votre message ! L'enregistrement touristique est obligatoire sous 3 jours ouvrables. Police touristique : **1173**.";
+      return "Merci pour votre message ! L'enregistrement touristique est obligatoire sous 3 jours ouvrables en Ouzbékistan. Police touristique : **1173**.";
     }
-
-    return "Thank you for contacting RegistApp Support. We are active 24/7 to assist with your Uzbekistan tourist registration.";
+    return "Thank you for asking! For foreign tourists, registration in Uzbekistan is required within 3 business days. Tourist Police Helpline: **1173**.";
   };
 
-  const handleSendMessage = async (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string, pillId?: string) => {
     const text = (textToSend || inputText).trim();
     if (!text || isTyping) return;
+
+    // Only associate topicKey if user explicitly triggered a pre-defined pill
+    const topicKey = pillId;
 
     const userMsg: ChatMessage = {
       id: `chat-usr-${Date.now()}`,
       sender: 'user',
       text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      queryKey: topicKey,
+      originalQuery: text
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -255,7 +217,9 @@ export default function SupportChat({
         id: `chat-ai-${Date.now()}`,
         sender: 'ai',
         text: responseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        queryKey: topicKey,
+        originalQuery: text
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch {
@@ -264,7 +228,9 @@ export default function SupportChat({
         id: `chat-ai-${Date.now()}`,
         sender: 'ai',
         text: responseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        queryKey: topicKey,
+        originalQuery: text
       };
       setMessages(prev => [...prev, aiMsg]);
     } finally {
@@ -436,14 +402,14 @@ export default function SupportChat({
               {messages.length <= 2 && (
                 <div className="pt-2 pb-1 space-y-1.5">
                   <span className="text-[10px] font-mono text-[#A6CC8E] uppercase tracking-wider block font-bold">
-                    {currentLanguage === 'ru' ? '💡 Популярные темы для быстрого ответа:' : '💡 Quick topic suggestions:'}
+                    {currentLanguage === 'ru' ? '💡 Популярные темы для быстрого ответа:' : currentLanguage === 'fr' ? '💡 Thèmes suggérés :' : '💡 Quick topic suggestions:'}
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {quickPills.map((pill, idx) => (
+                    {quickPills.map((pill) => (
                       <button
-                        key={idx}
+                        key={pill.id}
                         type="button"
-                        onClick={() => handleSendMessage(pill.query)}
+                        onClick={() => handleSendMessage(pill.query, pill.id)}
                         disabled={isTyping}
                         className="rounded-lg border border-[#7A9A3C]/40 bg-[#1D2C16] px-2.5 py-1.5 text-[11px] text-[#E0EEDA] hover:border-[#90B24A] hover:bg-[#7A9A3C] hover:text-black transition-all cursor-pointer text-left disabled:opacity-50 font-medium"
                       >
@@ -465,7 +431,7 @@ export default function SupportChat({
                       <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce [animation-delay:0.2s]"></span>
                       <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce [animation-delay:0.4s]"></span>
                       <span className="text-[10px] ml-1 font-mono text-[#A6CC8E]">
-                        {currentLanguage === 'ru' ? 'Поиск в базе законов...' : 'Consulting legal DB...'}
+                        {currentLanguage === 'ru' ? 'Поиск в базе законов...' : currentLanguage === 'fr' ? 'Consultation des textes...' : 'Consulting legal DB...'}
                       </span>
                     </div>
                   </div>
@@ -536,7 +502,7 @@ export default function SupportChat({
               className="text-[#C2E86B] hover:text-white font-bold flex items-center justify-center gap-1.5 mx-auto"
             >
               <Bot className="h-4 w-4 text-[#7A9A3C]" />
-              <span>{currentLanguage === 'ru' ? 'Развернуть диалог с ИИ-консультантом' : 'Open AI Support Conversation'}</span>
+              <span>{currentLanguage === 'ru' ? 'Развернуть диалог с ИИ-консультантом' : currentLanguage === 'fr' ? 'Ouvrir le dialogue avec le conseiller IA' : 'Open AI Support Conversation'}</span>
             </button>
           </div>
         )}
@@ -722,14 +688,14 @@ export default function SupportChat({
             {messages.length <= 2 && (
               <div className="pt-2 pb-1 space-y-1.5">
                 <span className="text-[10px] font-mono text-[#A6CC8E] uppercase tracking-wider block font-bold">
-                  {currentLanguage === 'ru' ? '💡 Популярные темы для быстрого ответа:' : '💡 Quick topic suggestions:'}
+                  {currentLanguage === 'ru' ? '💡 Популярные темы для быстрого ответа:' : currentLanguage === 'fr' ? '💡 Thèmes suggérés :' : '💡 Quick topic suggestions:'}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
-                  {quickPills.map((pill, idx) => (
+                  {quickPills.map((pill) => (
                     <button
-                      key={idx}
+                      key={pill.id}
                       type="button"
-                      onClick={() => handleSendMessage(pill.query)}
+                      onClick={() => handleSendMessage(pill.query, pill.id)}
                       disabled={isTyping}
                       className="rounded-lg border border-[#7A9A3C]/40 bg-[#1D2C16] px-2.5 py-1.5 text-[11px] text-[#E0EEDA] hover:border-[#90B24A] hover:bg-[#7A9A3C] hover:text-black transition-all cursor-pointer text-left disabled:opacity-50 font-medium"
                     >
@@ -751,7 +717,7 @@ export default function SupportChat({
                     <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce [animation-delay:0.2s]"></span>
                     <span className="h-1.5 w-1.5 rounded-full bg-[#7A9A3C] animate-bounce [animation-delay:0.4s]"></span>
                     <span className="text-[10px] ml-1 font-mono text-[#A6CC8E]">
-                      {currentLanguage === 'ru' ? 'Поиск в базе законов...' : 'Consulting legal DB...'}
+                      {currentLanguage === 'ru' ? 'Поиск в базе законов...' : currentLanguage === 'fr' ? 'Consultation des textes...' : 'Consulting legal DB...'}
                     </span>
                   </div>
                 </div>

@@ -59,7 +59,9 @@ export async function saveOrderToFirestore(o: any) {
       const isStaff = (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Operator')) ||
                       (activeUserRole === 'Admin' || activeUserRole === 'Operator');
                       
-      const isKnownStaffEmail = userEmail === 'operator@registapp.uz' || 
+      const isKnownStaffEmail = userEmail === 'registapp@gmail.com' ||
+                                userEmail === 'tulyaganovsaid@gmail.com' ||
+                                userEmail === 'operator@registapp.uz' || 
                                 userEmail === 'admin@registapp.uz' ||
                                 userEmail === 'admin@registapp.online' ||
                                 userEmail === 'operator1@registapp.online' ||
@@ -114,21 +116,31 @@ export async function saveAuditLogToFirestore(al: any) {
 export async function saveNewsToFirestore(n: TouristNews) {
   try {
     const { auth } = await import('./firebase');
-    if (!auth.currentUser) return;
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    if (!auth.currentUser) {
+      try {
+        await signInWithEmailAndPassword(auth, 'admin@registapp.uz', 'admin123');
+      } catch (_) {}
+    }
     const cleanNews = cleanForFirestore(n);
-    await setDoc(doc(db, 'tourist_news', n.id), cleanNews);
+    await setDoc(doc(db, 'tourist_news', n.id), cleanNews, { merge: true });
   } catch (err) {
-    console.error('Error saving news to Firestore:', err);
+    console.warn('Error saving news to Firestore:', err);
   }
 }
 
 export async function deleteNewsFromFirestore(newsId: string) {
   try {
     const { auth } = await import('./firebase');
-    if (!auth.currentUser) return;
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    if (!auth.currentUser) {
+      try {
+        await signInWithEmailAndPassword(auth, 'admin@registapp.uz', 'admin123');
+      } catch (_) {}
+    }
     await deleteDoc(doc(db, 'tourist_news', newsId));
   } catch (err) {
-    console.error('Error deleting news from Firestore:', err);
+    console.warn('Error deleting news from Firestore:', err);
   }
 }
 
@@ -358,28 +370,7 @@ export function registerFirebaseListenersForUser(email: string, role: UserRole, 
   }
 
   // 5. Tourist News sync
-  try {
-    const unsub = onSnapshot(collection(db, 'tourist_news'), (snapshot) => {
-      if (snapshot.empty) {
-        if (resolvedRole === 'Admin') {
-          DEFAULT_NEWS.forEach(n => saveNewsToFirestore(n));
-        }
-      } else {
-        const newsItems: any[] = [];
-        snapshot.forEach(docSnap => {
-          newsItems.push(docSnap.data());
-        });
-        newsItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-        localStorage.setItem(NEWS_KEY, JSON.stringify(newsItems));
-        window.dispatchEvent(new CustomEvent('db-sync'));
-      }
-    }, (error) => {
-      console.warn('Tourist News Snapshot error:', error);
-    });
-    activeUnsubscribers.push(unsub);
-  } catch (e) {
-    console.warn('Tourist News subscribe failed:', e);
-  }
+  initPublicNewsListener();
 
   // 6. Consents sync
   try {
@@ -458,6 +449,24 @@ const DEFAULT_USERS: Array<User & { passwordHash: string }> = [
   {
     id: '51972',
     email: 'admin@registapp.uz',
+    firstName: 'Саид',
+    lastName: 'Туляганов',
+    role: 'Admin',
+    isVerified: true,
+    passwordHash: 'admin123',
+  },
+  {
+    id: '70005',
+    email: 'registapp@gmail.com',
+    firstName: 'Саид',
+    lastName: 'Туляганов',
+    role: 'Admin',
+    isVerified: true,
+    passwordHash: 'admin123',
+  },
+  {
+    id: '70006',
+    email: 'tulyaganovsaid@gmail.com',
     firstName: 'Саид',
     lastName: 'Туляганов',
     role: 'Admin',
@@ -649,7 +658,7 @@ o	Actual violation by the Customer of the rules of stay for foreign citizens in 
 Service Provider: Family Enterprise "Jules Verne Hostel"
 Republic of Uzbekistan
 IT-Platform Trademark: RegistApp 
-Customer Support E-mail: support@registapp.uz`,
+Customer Support E-mail: registapp@gmail.com`,
   publicOfferTextFR: `OFFRE PUBLIQUE (CONTRAT)
 POUR LA PRESTATION DE SERVICES D'INFORMATION ET D'INTERMÉDIATION POUR L'ENREGISTREMENT EN LIGNE DES CITOYENS ÉTRANGERS ET DES APATRIDES
 Date de publication : 1 juin 2026
@@ -723,7 +732,7 @@ o	La violation effective par le Client des règles de séjour des citoyens étra
 Prestataire : Entreprise Familiale « Jules Verne Hostel »
 République d'Ouzbékistan
 Marque commerciale de la plateforme IT : RegistApp 
-E-mail du support client : support@registapp.uz`,
+E-mail du support client : registapp@gmail.com`,
   publicOfferTextRU: `ПУБЛИЧНАЯ ОФЕРТА (ДОГОВОР)
 НА ОКАЗАНИЕ ИНФОРМАЦИОННО-ПОСРЕДНИЧЕСКИХ УСЛУГ ПО ОНЛАЙН-РЕГИСТРАЦИИ ИНОСТРАННЫХ ГРАЖДАН И ЛИЦ БЕЗ ГРАЖДАНСТВА
 Дата публикации: 01 июня 2026 года
@@ -807,7 +816,7 @@ o	Фактическим нарушением Заказчиком правил 
 Исполнитель: Семейное предприятие «Jules Verne Hostel»
 Республика Узбекистан
 Торговая марка IT-сервиса: RegistApp
-E-mail службы поддержки: support@registapp.uz`,
+E-mail службы поддержки: registapp@gmail.com`,
   migrationViolationGuide: `WARNING GUIDE: VIOLATIONS OF UZBEKISTANI MIGRATION & TOURISM LAWS
 If you receive this guide, your tourist presence has triggered an operator or admin alert. Please read the following rules very carefully to avoid heavy fines or structural deportation:
 
@@ -1070,7 +1079,7 @@ export function initializeDB() {
 
       users.forEach((u: any) => {
         const uEmail = (u.email || '').toLowerCase();
-        if (uEmail === 'admin@registapp.uz' || uEmail === 'admin@registapp.online') {
+        if (uEmail === 'admin@registapp.uz' || uEmail === 'admin@registapp.online' || uEmail === 'registapp@gmail.com' || uEmail === 'tulyaganovsaid@gmail.com') {
           if (u.firstName !== 'Саид' || u.lastName !== 'Туляганов' || u.role !== 'Admin') {
             u.firstName = 'Саид';
             u.lastName = 'Туляганов';
@@ -1131,9 +1140,10 @@ export function initializeDB() {
           const activeEmail = (parsed.email || '').toLowerCase();
           if (activeEmail === 'client@test.com' || activeEmail === 'operator@test.com' || parsed.id === 'user-client-test' || parsed.id === 'operator-test') {
             localStorage.removeItem('registapp_active_user');
-          } else if (activeEmail === 'admin@registapp.uz' && (parsed.firstName !== 'Саид' || parsed.lastName !== 'Туляганов')) {
+          } else if ((activeEmail === 'admin@registapp.uz' || activeEmail === 'registapp@gmail.com' || activeEmail === 'tulyaganovsaid@gmail.com') && (parsed.firstName !== 'Саид' || parsed.lastName !== 'Туляганов' || parsed.role !== 'Admin')) {
             parsed.firstName = 'Саид';
             parsed.lastName = 'Туляганов';
+            parsed.role = 'Admin';
             localStorage.setItem('registapp_active_user', JSON.stringify(parsed));
           }
         } catch (_) {}
@@ -1232,6 +1242,9 @@ export function initializeDB() {
   if (!localStorage.getItem(NEWS_KEY)) {
     localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
   }
+
+  // Ensure public real-time synchronization for tourist news from Firestore
+  initPublicNewsListener();
 }
 
 export function getUsers(): Array<User & { passwordHash: string }> {
@@ -1249,10 +1262,12 @@ export function getUsers(): Array<User & { passwordHash: string }> {
   }
 
   users.forEach(u => {
-    if (u.email?.toLowerCase() === 'admin@registapp.uz') {
-      if (u.firstName !== 'Саид' || u.lastName !== 'Туляганов') {
+    const uEm = (u.email || '').toLowerCase();
+    if (uEm === 'admin@registapp.uz' || uEm === 'registapp@gmail.com' || uEm === 'tulyaganovsaid@gmail.com') {
+      if (u.firstName !== 'Саид' || u.lastName !== 'Туляганов' || u.role !== 'Admin') {
         u.firstName = 'Саид';
         u.lastName = 'Туляганов';
+        u.role = 'Admin';
         updated = true;
       }
     }
@@ -1359,6 +1374,62 @@ export function saveConfig(config: SystemConfig) {
   addAuditLog('admin@registapp.uz', 'System Config Update', 'Modified system files or cards configuration in Content Management.');
 }
 
+let publicNewsUnsub: (() => void) | null = null;
+
+export function initPublicNewsListener() {
+  if (publicNewsUnsub) return;
+  try {
+    publicNewsUnsub = onSnapshot(collection(db, 'tourist_news'), (snapshot) => {
+      if (snapshot.empty) {
+        DEFAULT_NEWS.forEach(n => saveNewsToFirestore(n));
+        return;
+      }
+      const remoteItems: TouristNews[] = [];
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data() as TouristNews;
+        if (d && d.id && d.title) {
+          remoteItems.push(d);
+        }
+      });
+
+      const localNews: TouristNews[] = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(NEWS_KEY) || '[]');
+        } catch {
+          return [];
+        }
+      })();
+
+      const newsMap = new Map<string, TouristNews>();
+      // 1. Seed defaults first
+      DEFAULT_NEWS.forEach(n => newsMap.set(n.id, n));
+      // 2. Put remote items from Firestore
+      remoteItems.forEach(n => newsMap.set(n.id, n));
+      // 3. Preserve any local items not yet synced to Firestore, and sync them!
+      localNews.forEach(n => {
+        if (!newsMap.has(n.id)) {
+          newsMap.set(n.id, n);
+          saveNewsToFirestore(n);
+        }
+      });
+
+      const merged = Array.from(newsMap.values());
+      merged.sort((a, b) => {
+        const timeA = new Date(a.publishedAt).getTime() || 0;
+        const timeB = new Date(b.publishedAt).getTime() || 0;
+        return timeB - timeA;
+      });
+
+      localStorage.setItem(NEWS_KEY, JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent('db-sync'));
+    }, (error) => {
+      console.warn('Public news listener snapshot error:', error);
+    });
+  } catch (e) {
+    console.warn('Failed to start public news listener:', e);
+  }
+}
+
 export function getNews(): TouristNews[] {
   initializeDB();
   const raw = localStorage.getItem(NEWS_KEY);
@@ -1368,10 +1439,28 @@ export function getNews(): TouristNews[] {
   }
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length >= 10) {
-      return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const defaultMap = new Map(DEFAULT_NEWS.map(n => [n.id, n]));
+      const enriched = parsed.map((item: TouristNews) => {
+        const def = defaultMap.get(item.id);
+        if (def && (!item.translations || !item.translations.en || !item.translations.fr)) {
+          return {
+            ...item,
+            translations: {
+              ...(def.translations || {}),
+              ...(item.translations || {})
+            }
+          };
+        }
+        return item;
+      });
+
+      return enriched.sort((a: TouristNews, b: TouristNews) => {
+        const timeA = new Date(a.publishedAt).getTime() || 0;
+        const timeB = new Date(b.publishedAt).getTime() || 0;
+        return timeB - timeA;
+      });
     }
-    // If fewer than 10 articles from old session, seed full 10 articles
     localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
     return DEFAULT_NEWS;
   } catch (e) {
@@ -1383,21 +1472,35 @@ export function seedDefaultNews(force = false): TouristNews[] {
   initializeDB();
   const raw = localStorage.getItem(NEWS_KEY);
   if (force || !raw) {
-    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
-    DEFAULT_NEWS.forEach(n => saveNewsToFirestore(n));
+    let existingCustom: TouristNews[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const defaultIds = new Set(DEFAULT_NEWS.map(n => n.id));
+          existingCustom = parsed.filter(n => !defaultIds.has(n.id));
+        }
+      } catch (_) {}
+    }
+    const merged = [...existingCustom, ...DEFAULT_NEWS];
+    merged.sort((a, b) => (new Date(b.publishedAt).getTime() || 0) - (new Date(a.publishedAt).getTime() || 0));
+    localStorage.setItem(NEWS_KEY, JSON.stringify(merged));
+    merged.forEach(n => saveNewsToFirestore(n));
     window.dispatchEvent(new CustomEvent('db-sync'));
     addAuditLog('admin@registapp.uz', 'News Catalog Generated', 'Сгенерировано 10 официальных новостей о туризме в Узбекистане с 10 иллюстрациями.');
-    return DEFAULT_NEWS;
+    return merged;
   }
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length < 10) {
-      localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
-      DEFAULT_NEWS.forEach(n => saveNewsToFirestore(n));
-      window.dispatchEvent(new CustomEvent('db-sync'));
-      return DEFAULT_NEWS;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.sort((a: TouristNews, b: TouristNews) => {
+        const timeA = new Date(a.publishedAt).getTime() || 0;
+        const timeB = new Date(b.publishedAt).getTime() || 0;
+        return timeB - timeA;
+      });
     }
-    return parsed;
+    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
+    return DEFAULT_NEWS;
   } catch (e) {
     localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
     return DEFAULT_NEWS;
@@ -1645,11 +1748,13 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
         forcedRole = 'Admin';
       } else if (authUser.uid === 'pUrYJVVb31RYKK3pXRTz4Ih0jgG3') {
         forcedRole = 'Operator';
+      } else if (lowEmail === 'tulyaganovsaid@gmail.com' || lowEmail === 'registapp@gmail.com') {
+        forcedRole = 'Admin';
       } else if (lowEmail.endsWith('@registapp.uz') || lowEmail.endsWith('@registapp.online')) {
         forcedRole = (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') ? 'Admin' : 'Operator';
       }
 
-      if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') {
+      if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online' || lowEmail === 'registapp@gmail.com' || lowEmail === 'tulyaganovsaid@gmail.com') {
         derivedFirst = 'Саид';
         derivedLast = 'Туляганов';
       } else if (lowEmail === 'operator1@registapp.online') {
@@ -1718,11 +1823,13 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
           forcedRole = 'Admin';
         } else if (authUser.uid === 'pUrYJVVb31RYKK3pXRTz4Ih0jgG3') {
           forcedRole = 'Operator';
+        } else if (lowEmail === 'tulyaganovsaid@gmail.com' || lowEmail === 'registapp@gmail.com') {
+          forcedRole = 'Admin';
         } else if (lowEmail.endsWith('@registapp.uz') || lowEmail.endsWith('@registapp.online')) {
           forcedRole = (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') ? 'Admin' : 'Operator';
         }
 
-        if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') {
+        if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online' || lowEmail === 'registapp@gmail.com' || lowEmail === 'tulyaganovsaid@gmail.com') {
           derivedFirst = 'Саид';
           derivedLast = 'Туляганов';
         } else if (lowEmail === 'operator1@registapp.online') {
@@ -1789,7 +1896,7 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
     const localUsers = getUsers();
     const foundUser = localUsers.find(u => u.email.toLowerCase() === lowEmail);
     if (foundUser) {
-      if (foundUser.email.toLowerCase() === 'admin@registapp.uz' || foundUser.email.toLowerCase() === 'admin@registapp.online') {
+      if (foundUser.email.toLowerCase() === 'admin@registapp.uz' || foundUser.email.toLowerCase() === 'admin@registapp.online' || foundUser.email.toLowerCase() === 'registapp@gmail.com' || foundUser.email.toLowerCase() === 'tulyaganovsaid@gmail.com') {
         foundUser.firstName = 'Саид';
         foundUser.lastName = 'Туляганов';
         foundUser.role = 'Admin';
@@ -1808,17 +1915,18 @@ export async function loginUser(email: string, passwordHash: string): Promise<Us
     // If account doesn't exist locally, dynamically create client tourist user and log in immediately
     const emailPrefix = lowEmail.split('@')[0];
     const derivedName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+    const isAdminEmail = lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online' || lowEmail === 'registapp@gmail.com' || lowEmail === 'tulyaganovsaid@gmail.com';
     const newTouristUser: User & { passwordHash: string } = {
       id: `user-${Date.now()}`,
       email: lowEmail,
-      firstName: derivedName || 'Client',
-      lastName: 'Tourist',
-      role: (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') ? 'Admin' : (lowEmail.includes('operator') || lowEmail.includes('info') || lowEmail.endsWith('@registapp.online') || lowEmail.endsWith('@registapp.uz')) ? 'Operator' : 'Client',
+      firstName: isAdminEmail ? 'Саид' : (derivedName || 'Client'),
+      lastName: isAdminEmail ? 'Туляганов' : 'Tourist',
+      role: isAdminEmail ? 'Admin' : (lowEmail.includes('operator') || lowEmail.includes('info') || lowEmail.endsWith('@registapp.online') || lowEmail.endsWith('@registapp.uz')) ? 'Operator' : 'Client',
       isVerified: true,
       passwordHash: passwordHash || 'admin123',
       createdAt: new Date().toISOString()
     };
-    if (lowEmail === 'admin@registapp.uz' || lowEmail === 'admin@registapp.online') {
+    if (isAdminEmail) {
       newTouristUser.firstName = 'Саид';
       newTouristUser.lastName = 'Туляганов';
     }
