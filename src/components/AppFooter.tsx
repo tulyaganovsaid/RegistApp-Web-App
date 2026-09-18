@@ -70,7 +70,7 @@ export default function AppFooter({
   return (
     <footer
       id={id}
-      className={`border-t border-zinc-800/90 bg-zinc-950/95 backdrop-blur py-8 px-4 sm:px-6 lg:px-8 text-zinc-400 select-none ${className}`}
+      className={`border-t border-zinc-800/80 bg-transparent py-8 px-4 sm:px-6 lg:px-8 text-zinc-400 select-none ${className}`}
     >
       <div className="max-w-6xl mx-auto flex flex-col gap-6">
         
@@ -84,8 +84,8 @@ export default function AppFooter({
               onClick={(e) => handleLinkClick(e, privacyLink.path)}
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors duration-150 ${
                 activeSlug === 'privacy'
-                  ? 'bg-zinc-800 text-[#a2e635] font-semibold ring-1 ring-[#a2e635]/30'
-                  : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+                  ? 'bg-zinc-800/80 text-[#a2e635] font-semibold ring-1 ring-[#a2e635]/30'
+                  : 'text-zinc-300 hover:text-white hover:bg-white/5'
               }`}
             >
               {icons.privacy}
@@ -101,8 +101,8 @@ export default function AppFooter({
               onClick={(e) => handleLinkClick(e, termsLink.path)}
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors duration-150 ${
                 activeSlug === 'terms'
-                  ? 'bg-zinc-800 text-[#a2e635] font-semibold ring-1 ring-[#a2e635]/30'
-                  : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+                  ? 'bg-zinc-800/80 text-[#a2e635] font-semibold ring-1 ring-[#a2e635]/30'
+                  : 'text-zinc-300 hover:text-white hover:bg-white/5'
               }`}
             >
               {icons.terms}
@@ -118,8 +118,8 @@ export default function AppFooter({
               onClick={(e) => handleLinkClick(e, cookiesLink.path)}
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors duration-150 ${
                 activeSlug === 'cookies'
-                  ? 'bg-zinc-800 text-[#a2e635] font-semibold ring-1 ring-[#a2e635]/30'
-                  : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+                  ? 'bg-zinc-800/80 text-[#a2e635] font-semibold ring-1 ring-[#a2e635]/30'
+                  : 'text-zinc-300 hover:text-white hover:bg-white/5'
               }`}
             >
               {icons.cookies}
@@ -132,7 +132,7 @@ export default function AppFooter({
             id="footer-cookie-settings-btn"
             type="button"
             onClick={handleOpenCookieSettings}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-900 transition-colors duration-150 cursor-pointer"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/5 transition-colors duration-150 cursor-pointer"
           >
             <Sliders className="w-3.5 h-3.5 text-[#a2e635]" />
             <span>
@@ -152,8 +152,8 @@ export default function AppFooter({
               onClick={(e) => handleLinkClick(e, contactsLink.path)}
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors duration-150 ${
                 activeSlug === 'contacts'
-                  ? 'bg-zinc-800 text-[#a2e635] font-semibold ring-1 ring-[#a2e635]/30'
-                  : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+                  ? 'bg-zinc-800/80 text-[#a2e635] font-semibold ring-1 ring-[#a2e635]/30'
+                  : 'text-zinc-300 hover:text-white hover:bg-white/5'
               }`}
             >
               {icons.contacts}
@@ -165,7 +165,7 @@ export default function AppFooter({
         {/* Строка: «RegistApp — справочно-сервисный проект. Не является государственным органом.» */}
         <div 
           id="footer-disclaimer-bar" 
-          className="flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl bg-zinc-900/90 border border-zinc-800 text-center text-xs text-amber-300/90 shadow-sm"
+          className="flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-center text-xs text-amber-300/90 shadow-sm"
         >
           <Info className="w-4 h-4 text-amber-400 shrink-0" />
           <span className="font-medium tracking-wide">
@@ -187,7 +187,7 @@ export default function AppFooter({
         {/* Informational Sub-bar: Copyright, E-mehmon partner statement, and Tourist Police Hotline */}
         <div 
           id="footer-bottom-bar"
-          className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-900 text-xs text-zinc-500 text-center sm:text-left"
+          className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-800/80 text-xs text-zinc-500 text-center sm:text-left"
         >
           <div>
             <p className="font-medium text-zinc-400">
@@ -205,7 +205,7 @@ export default function AppFooter({
           {/* Tourist Police Hotline Badge */}
           <div 
             id="footer-hotline-badge"
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-[11px]"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-[11px]"
           >
             <PhoneCall className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
             <span className="text-zinc-400">

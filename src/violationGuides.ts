@@ -16,7 +16,7 @@ Typical Reasons for Application Suspension:
 • Data Mismatches: A clear discrepancy was detected between user-inputted form fields and text on the physical checkpoint stamps.
 
 Legal Status and Platform Boundaries:
-Please note: RegistApp acts strictly as an informational and intermediary digital service for independent travelers holding the "Free Tourist" status. The platform is not a physical lodging facility (it does not provide actual overnight accommodation at the Jules Verne Hostel entity) and possesses no legal authority to waive state-imposed administrative fines.
+Please note: RegistApp is the official digital service operated by Family Enterprise "Jules Verne Hostel" for independent travelers in Uzbekistan. The platform has no legal authority to waive state-imposed administrative fines.
 
 ----------------------------------------------------------------------
 2. Core Migration Rules in the Republic of Uzbekistan
@@ -48,7 +48,7 @@ Leads to an immediate platform account ban in the RegistApp database, unconditio
 4. Step-by-Step Action Protocols (Instructions for the Traveler)
 ----------------------------------------------------------------------
 Scenario A: Technical Defect (Blurry photo or typing error)
-1. Log into your personal web cabinet on the RegistApp.uz portal.
+1. Log into your personal web cabinet on the registapp.online portal.
 2. Take new, high-contrast, sharp photographs of your passport main bio data page and the border entry stamp. Ensure good natural lighting without using a camera flash to prevent glares. Do not crop out page edges.
 3. Resubmit the application form. The operator will review your files under a priority queue within 24 hours.
 
@@ -82,7 +82,7 @@ The official portal of the main migration division. Provides up-to-date lists of
 • Official Tourism Portal of Uzbekistan (uzbekistan.travel):
 A state-managed travel information database containing comprehensive travel guides, interactive maps, customs declarations, safety advice, and cultural calendars.
 
-• RegistApp Legal & Technical Support (support@registapp.uz):
+• RegistApp Legal & Technical Support (info@registapp.online):
 Direct electronic mail channel to reach tech support regarding account access, system errors, user cabinet fixes, or payment checking issues.
 
 ----------------------------------------------------------------------
@@ -107,7 +107,7 @@ Motifs fréquents de suspension de la demande :
 • Incohérence des données : Une divergence manifeste a été détectée entre les champs du formulaire remplis par l'utilisateur et les textes des tampons physiques du point de contrôle.
 
 Statut Juridique et Limites de la Plateforme :
-Veuillez noter : RegistApp agit strictement en tant que service numérique d'information et d'intermédiation pour les voyageurs indépendants titulaires du statut de « Touriste Libre ». La plateforme n'est pas un établissement d'hébergement physique (elle ne fournit pas d'hébergement effectif au sein de l'entité Jules Verne Hostel) et n'a aucune autorité légale pour annuler les amendes administratives imposées par l'État.
+Veuillez noter : RegistApp est le service numérique officiel géré par l'Entreprise Familiale « Jules Verne Hostel » pour les voyageurs indépendants en Ouzbékistan. La plateforme n'a aucune autorité légale pour annuler les amendes administratives imposées par l'État.
 
 ----------------------------------------------------------------------
 2. Règles Migratoires Fondamentales en République d'Ouzbékistan
@@ -139,7 +139,7 @@ Entraîne un bannissement immédiat du compte sur la plateforme RegistApp, un re
 4. Protocoles d'Action Étape par Étape (Instructions pour le Voyageur)
 ----------------------------------------------------------------------
 Scénario A : Défaut technique (photo floue ou erreur de saisie)
-1. Connectez-vous à votre espace personnel sur le portail RegistApp.uz.
+1. Connectez-vous à votre espace personnel sur le portail registapp.online.
 2. Prenez de nouvelles photographies nettes et bien contrastées de la page principale de votre passeport (données biométriques) et du tampon d'entrée transfrontalier. Assurez-vous d'avoir un bon éclairage naturel sans utiliser le flash de l'appareil pour éviter les reflets. Ne rognez pas les bords des pages.
 3. Soumettez à nouveau le formulaire. L'opérateur examinera vos fichiers en priorité dans un délai de 24 heures.
 
@@ -173,7 +173,7 @@ Le portail officiel de la division principale des migrations. Fournit des listes
 • Portail Touristique Officiel de l'Ouzbékistan (uzbekistan.travel):
 Une base de données d'informations touristiques gérée par l'État, contenant des guides de voyage complets, des cartes interactives, des déclarations de douane, des conseils de sécurité et des calendriers culturels.
 
-• Support Technique et Juridique RegistApp (support@registapp.uz):
+• Support Technique et Juridique RegistApp (info@registapp.online):
 Canal de messagerie électronique direct pour contacter l'assistance technique concernant l'accès au compte, les erreurs système, les corrections de l'espace utilisateur ou les problèmes de vérification des paiements.
 
 ----------------------------------------------------------------------
@@ -198,7 +198,7 @@ export const VIOLATION_GUIDE_RU = `UZBEKISTAN TOURIST GUIDELINE
 • Несоответствие данных: Обнаружено явное несоответствие введенных анкетных данных текстовой информации на штампах КПП.
 
 Правовой статус платформы:
-Обращаем ваше внимание: RegistApp выступает исключительно в качестве информационно-посреднического веб-сервиса для независимых путешественников в статусе «Свободный турист». Платформа не является средством размещения (хостелом или отелем), не предоставляет физических мест для ночлега в Jules Verne Hostel и не имеет полномочий аннулировать штрафы, наложенные государством.
+Обращаем ваше внимание: RegistApp — официальный цифровой сервис Семейного предприятия «Jules Verne Hostel» для туристов и путешественников. Платформа не имеет полномочий аннулировать штрафы, наложенные государством.
 
 ----------------------------------------------------------------------
 2. Ключевые правила миграционного учета в Узбекистане
@@ -230,7 +230,7 @@ export const VIOLATION_GUIDE_RU = `UZBEKISTAN TOURIST GUIDELINE
 4. Пошаговые алгоритмы действий (Инструкции для туриста)
 ----------------------------------------------------------------------
 Сценарий А: Технический дефект (плохое фото/опечатка)
-1. Авторизуйтесь в Личном кабинете на портале RegistApp.uz.
+1. Авторизуйтесь в Личном кабинете на портале registapp.online.
 2. Сделайте повторные, четкие фотографии разворота паспорта и штампа КПП (без использования вспышки, при хорошем дневном освещении).
 3. Отправьте заявку на перепроверку оператору.
 
@@ -264,7 +264,7 @@ export const VIOLATION_GUIDE_RU = `UZBEKISTAN TOURIST GUIDELINE
 • Официальный туристический портал Узбекистана (uzbekistan.travel):
 Государственный информационный ресурс с гидами, картами, правилами безопасности, таможенными требованиями для въезжающих и календарем культурных мероприятий.
 
-• Служба поддержки RegistApp (support@registapp.uz):
+• Служба поддержки RegistApp (info@registapp.online):
 Прямой адрес электронной почты технической поддержки для решения вопросов, связанных с работой личного кабинета, восстановлением доступа к анкетам или проверкой статуса платежей.
 
 ----------------------------------------------------------------------

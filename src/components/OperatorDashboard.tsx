@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Check, FileText, Globe, UploadCloud, AlertCircle, Clock, MapPin, 
   User as UserIcon, CheckCircle, ExternalLink, ShieldAlert, ArrowLeft, Languages,
-  AlertTriangle
+  AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { Order, User, LanguageCode } from '../types';
 import { getOrders, sendViolation, completeOrder, addAuditLog, claimOrder, releaseOrder, rejectPayment, confirmPaymentReceived } from '../db';
@@ -36,8 +36,17 @@ export default function OperatorDashboard({ currentLanguage, setLanguage, curren
 
   // CSS Document Viewer overlays
   const [activeViewerTab, setActiveViewerTab] = useState<'passport' | 'stamp' | 'visa' | 'registration'>('passport');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const t = (key: string) => translations[currentLanguage]?.[key] || key;
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    syncOrders();
+    setTimeout(() => {
+      window.location.reload();
+    }, 150);
+  };
 
   useEffect(() => {
     syncOrders();
@@ -448,6 +457,17 @@ export default function OperatorDashboard({ currentLanguage, setLanguage, curren
               <p className="text-sm font-semibold text-gray-200">{currentUser.firstName} {currentUser.lastName}</p>
               <p className="text-xs text-[#a2e635] font-mono font-bold">RegistApp® Operator ({currentUser.id})</p>
             </div>
+
+            {/* Refresh Button */}
+            <button
+              id="btn-operator-refresh"
+              onClick={handleRefresh}
+              title={currentLanguage === 'ru' ? 'Обновить страницу' : currentLanguage === 'fr' ? 'Actualiser la page' : 'Refresh page'}
+              className="flex items-center space-x-1.5 sm:space-x-2 rounded-xl bg-gradient-to-r from-[#65a30d] to-[#84cc16] hover:from-[#84cc16] hover:to-[#a2e635] px-3.5 py-2 text-xs font-bold text-gray-950 border border-[#a2e635]/60 shadow-md shadow-[#65a30d]/25 hover:shadow-lg hover:shadow-[#a2e635]/30 transition-all duration-150 cursor-pointer active:scale-95"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-gray-950 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
 
             {/* Language Switcher */}
             <div className="flex items-center space-x-1.5 border border-gray-800 bg-[#1f2937]/40 px-3 py-2 rounded-xl">

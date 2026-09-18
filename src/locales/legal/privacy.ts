@@ -76,7 +76,7 @@ export const privacyContent: LegalLocaleContent = {
           'Оператор не передает персональные данные третьим лицам, за исключением следующих уполномоченных получателей, строго необходимых для исполнения услуги:',
         ],
         bulletPoints: [
-          'Хостел «Jules Verne Hostel» (ООО) — сертифицированный туроператор и администратор корпоративного аккаунта в государственной системе E-mehmon, непосредственно осуществляющий регистрационные действия;',
+          'Семейное предприятие «Jules Verne Hostel» — сертифицированный оператор размещения и администратор корпоративного аккаунта в государственной системе E-mehmon, непосредственно осуществляющий регистрационные действия;',
           'Министерство внутренних дел Республики Узбекистан (Главное управление миграции и оформления гражданства) — как государственный владелец и оператор информационной системы e-mehmon.uz;',
           'Банковский платёжный провайдер / эквайер — в части, минимально необходимой для верификации факта совершения транзакции и оплаты госпошлины/сервисного сбора;',
           'Google Cloud Platform (Google LLC) — в качестве поставщика облачной защищенной инфраструктуры и баз данных, отвечающего мировым стандартам безопасности SOC 2 и ISO 27001.',
@@ -219,7 +219,7 @@ export const privacyContent: LegalLocaleContent = {
           'The Operator does not sell or disclose personal data to third parties, except for designated authorized entities necessary to fulfill the registration service:',
         ],
         bulletPoints: [
-          'Jules Verne Hostel LLC — accredited operator account holder in the state E-mehmon system;',
+          'Family Enterprise "Jules Verne Hostel" — accredited operator account holder in the state E-mehmon system;',
           'Ministry of Internal Affairs of Uzbekistan (General Department of Migration and Citizenship) — state controller and owner of the e-mehmon.uz registry;',
           'Authorized Payment Gateway Provider — strictly for transaction authorization and fraud prevention;',
           'Google Cloud Platform (Google LLC) — secure cloud database and hosting provider complying with SOC 2 and ISO 27001 standards.',

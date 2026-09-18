@@ -245,7 +245,7 @@ ${legalKnowledgeBase || 'Действует Постановление КМ РУ
         });
 
         const response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
+          model: 'gemini-flash-latest',
           contents: contents,
           config: {
             systemInstruction: systemInstruction,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, FileText, ShieldAlert, Download, LogOut, Calendar, Mail, 
-  UserCheck, X, Eye, FileDigit, ZoomIn 
+  UserCheck, X, Eye, FileDigit, ZoomIn, RefreshCw
 } from 'lucide-react';
 import { User, Order, LanguageCode } from '../types';
 import AppFooter from './AppFooter';
@@ -180,14 +180,26 @@ export default function AdminUserDashboard({
             </div>
           </div>
 
-          <button 
-            id="admin-logout-btn"
-            onClick={onLogout}
-            className="w-full sm:w-auto flex items-center justify-center space-x-2 rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-2.5 text-xs text-zinc-400 hover:border-red-900 hover:text-red-400 transition"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>{currentLanguage === 'ru' ? 'Выйти' : 'Sign Out'}</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              id="admin-refresh-btn"
+              onClick={() => window.location.reload()}
+              title={currentLanguage === 'ru' ? 'Обновить страницу' : 'Refresh page'}
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-[#65a30d] to-[#84cc16] hover:from-[#84cc16] hover:to-[#a2e635] px-4 py-2.5 text-xs font-bold text-gray-950 border border-[#a2e635]/60 shadow-md shadow-[#65a30d]/25 hover:shadow-lg hover:shadow-[#a2e635]/30 transition-all duration-150 cursor-pointer active:scale-95"
+            >
+              <RefreshCw className="h-3.5 w-3.5 text-gray-950" />
+              <span>Refresh</span>
+            </button>
+
+            <button 
+              id="admin-logout-btn"
+              onClick={onLogout}
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-2.5 text-xs text-zinc-400 hover:border-red-900 hover:text-red-400 transition"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>{currentLanguage === 'ru' ? 'Выйти' : 'Sign Out'}</span>
+            </button>
+          </div>
         </header>
 
         {errorText && (

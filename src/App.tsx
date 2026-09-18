@@ -5,7 +5,6 @@ import WelcomeScreen from './components/WelcomeScreen';
 import ClientDashboard from './components/ClientDashboard';
 import OperatorDashboard from './components/OperatorDashboard';
 import AdminDashboard from './components/AdminDashboard';
-import AdminUserDashboard from './components/AdminUserDashboard';
 import SupportChat from './components/SupportChat';
 import LegalPage from './components/LegalPage';
 import CookieConsentBanner from './components/CookieConsentBanner';
