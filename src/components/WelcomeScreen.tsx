@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, UserPlus, Eye, EyeOff, ShieldAlert, CheckCircle, Languages, ShieldCheck, Clock, FileCheck, PhoneCall, Scale, Sparkles, Building2, ArrowRight } from 'lucide-react';
+import { LogIn, UserPlus, Eye, EyeOff, ShieldAlert, CheckCircle, Languages, ShieldCheck, Clock, FileCheck, PhoneCall, Scale, Sparkles, Building2, ArrowRight, Newspaper, KeyRound } from 'lucide-react';
 import { LanguageCode, User, UserRole } from '../types';
 import { loginUser, registerUser, verifyUserCode, getUsers } from '../db';
 import { translations } from '../translations';
@@ -17,6 +17,7 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ currentLanguage, onLoginSuccess, setLanguage, onNavigate }: WelcomeScreenProps) {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [mobileTab, setMobileTab] = useState<'news' | 'auth'>('news');
   
   // Login Form State
   const [loginEmail, setLoginEmail] = useState('');
@@ -174,18 +175,54 @@ export default function WelcomeScreen({ currentLanguage, onLoginSuccess, setLang
       </header>
 
       {/* Main Container with 2-Column Responsive Grid */}
-      <main id="main-auth-layout" className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <main id="main-auth-layout" className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+        {/* Mobile View Switcher (Visible on mobile/tablet viewports below lg) */}
+        <div className="lg:hidden flex rounded-2xl bg-[#171A1A] p-1.5 border border-[#2B3232] mb-6 shadow-xl">
+          <button
+            type="button"
+            id="tab-mobile-news"
+            onClick={() => setMobileTab('news')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+              mobileTab === 'news'
+                ? 'bg-[#7A9A3C] text-black shadow-lg shadow-[#7A9A3C]/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Newspaper className="h-4 w-4" />
+            <span>{currentLanguage === 'ru' ? 'Новости и инфографика' : currentLanguage === 'fr' ? 'Actualités' : 'News & Guide'}</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-black/25">10</span>
+          </button>
+          <button
+            type="button"
+            id="tab-mobile-auth"
+            onClick={() => setMobileTab('auth')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+              mobileTab === 'auth'
+                ? 'bg-[#7A9A3C] text-black shadow-lg shadow-[#7A9A3C]/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <KeyRound className="h-4 w-4" />
+            <span>{currentLanguage === 'ru' ? 'Вход / Регистрация' : currentLanguage === 'fr' ? 'Connexion' : 'Login / Register'}</span>
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
           
-          {/* LEFT COLUMN ON DESKTOP, 3RD ON MOBILE/TABLET: Tourist Information Portal */}
-          <div id="section-welcome-info" className="order-2 lg:order-1 lg:col-span-7 space-y-6">
-            
+          {/* LEFT COLUMN ON DESKTOP: Tourist Information Portal */}
+          <div 
+            id="section-welcome-info" 
+            className={`lg:col-span-7 space-y-6 ${mobileTab === 'news' ? 'block' : 'hidden lg:block'}`}
+          >
             {/* The Tourist Information Portal: Hero news with infographic, past news carousel, and archive */}
             <TouristInformationPortal currentLanguage={currentLanguage} />
           </div>
 
-          {/* RIGHT COLUMN ON DESKTOP, 1ST ON MOBILE/TABLET: Authentication Block + AI Support Block */}
-          <div id="section-welcome-auth-and-ai" className="order-1 lg:order-2 lg:col-span-5 flex flex-col space-y-6 w-full max-w-md mx-auto lg:ml-auto lg:mr-0">
+          {/* RIGHT COLUMN ON DESKTOP: Authentication Block + AI Support Block */}
+          <div 
+            id="section-welcome-auth-and-ai" 
+            className={`lg:col-span-5 flex flex-col space-y-6 w-full max-w-md mx-auto lg:ml-auto lg:mr-0 ${mobileTab === 'auth' ? 'block' : 'hidden lg:block'}`}
+          >
             
             {/* 1. TOP CARD: Authentication Block (Shifted to right, sits ABOVE the AI Support Block) */}
             <div id="card-auth-form-card" className="w-full rounded-2xl border border-[#2B3232] bg-[#171A1A] p-6 shadow-2xl backdrop-blur-md md:p-7">

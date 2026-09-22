@@ -13,7 +13,10 @@ service cloud.firestore {
         request.auth.uid == "YmHbaNrbd5U6kGgotrsZdlT2RBP2" ||
         (request.auth.token != null && 'email' in request.auth.token && (
           request.auth.token.email == "admin@registapp.uz" ||
-          request.auth.token.email == "admin@registapp.online"
+          request.auth.token.email == "admin@registapp.online" ||
+          request.auth.token.email == "registapp@gmail.com" ||
+          request.auth.token.email == "tulyaganovsaid@gmail.com" ||
+          request.auth.token.email == "TulyaganovSaid@gmail.com"
         ))
       );
     }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Newspaper, Calendar, Eye, ChevronRight, X, Search, Bookmark, ArrowLeft, ExternalLink } from 'lucide-react';
 import { TouristNews, LanguageCode, getLocalizedNews } from '../types';
-import { getNews } from '../db';
+import { getNews, initPublicNewsListener, formatPublicationDate, parsePublicationDate, sortNewsList } from '../db';
+import { NewsIllustration } from './NewsIllustration';
 
 interface TouristNewsBlockProps {
   currentLanguage: LanguageCode;
@@ -20,6 +21,7 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
   };
 
   useEffect(() => {
+    initPublicNewsListener();
     loadNews();
     window.addEventListener('db-sync', loadNews);
     return () => {
@@ -27,16 +29,12 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
     };
   }, []);
 
-  // Top 3 newest news: always sort by publication date descending so newest articles appear first
-  const sortedNews = [...news].sort((a, b) => {
-    const timeA = new Date(a.publishedAt).getTime() || 0;
-    const timeB = new Date(b.publishedAt).getTime() || 0;
-    return timeB - timeA;
-  });
+  // Deterministically sort news by publication date and creation timestamp
+  const sortedNews = sortNewsList(news);
   const top3News = sortedNews.slice(0, 3);
 
   // Filtered archive news using localized text
-  const filteredArchive = news.filter(item => {
+  const filteredArchive = sortedNews.filter(item => {
     const loc = getLocalizedNews(item, currentLanguage);
     const q = searchQuery.toLowerCase();
     const matchesSearch = loc.title.toLowerCase().includes(q) ||
@@ -56,13 +54,7 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
   };
 
   const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      const locale = currentLanguage === 'ru' ? 'ru-RU' : currentLanguage === 'fr' ? 'fr-FR' : 'en-US';
-      return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch {
-      return dateStr;
-    }
+    return formatPublicationDate(dateStr);
   };
 
   return (
@@ -117,15 +109,11 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
             >
               {/* Illustration */}
               <div className="relative h-44 w-full overflow-hidden bg-[#171A1A]">
-                <img
+                <NewsIllustration
                   src={article.illustration}
                   alt={loc.title}
-                  referrerPolicy="no-referrer"
+                  category={loc.category || article.category}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  onError={(e) => {
-                    // Fallback photo
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=1200&auto=format&fit=crop';
-                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#23292A] via-transparent to-black/30" />
                 
@@ -199,14 +187,11 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
             >
               {/* Header Hero Image */}
               <div className="relative h-56 sm:h-72 w-full overflow-hidden bg-[#171A1A] shrink-0">
-                <img
+                <NewsIllustration
                   src={selectedArticle.illustration}
                   alt={loc.title}
-                  referrerPolicy="no-referrer"
+                  category={loc.category || selectedArticle.category}
                   className="h-full w-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=1200&auto=format&fit=crop';
-                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#1E2222] via-[#1E2222]/40 to-transparent" />
 
@@ -381,15 +366,14 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
                       className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-[#2B3232] bg-[#23292A] p-3.5 hover:border-[#7A9A3C]/60 transition-all cursor-pointer group"
                     >
                       <div className="flex items-start space-x-3.5 flex-1 min-w-0">
-                        <img
-                          src={item.illustration}
-                          alt={loc.title}
-                          referrerPolicy="no-referrer"
-                          className="h-16 w-20 sm:h-20 sm:w-28 rounded-lg object-cover bg-[#171A1A] shrink-0"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=1200&auto=format&fit=crop';
-                          }}
-                        />
+                        <div className="h-16 w-20 sm:h-20 sm:w-28 rounded-lg overflow-hidden shrink-0 bg-[#171A1A]">
+                          <NewsIllustration
+                            src={item.illustration}
+                            alt={loc.title}
+                            category={loc.category || item.category}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="rounded bg-[#7A9A3C]/15 border border-[#7A9A3C]/30 px-2 py-0.5 text-[9px] font-bold text-[#90B24A]">

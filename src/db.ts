@@ -122,7 +122,11 @@ export async function saveNewsToFirestore(n: TouristNews) {
         await signInWithEmailAndPassword(auth, 'admin@registapp.uz', 'admin123');
       } catch (_) {}
     }
-    const cleanNews = cleanForFirestore(n);
+    const cleanNews = cleanForFirestore({
+      ...n,
+      publishedAt: formatPublicationDate(n.publishedAt),
+      createdAt: n.createdAt || getNewsTimestamp(n) || Date.now()
+    });
     await setDoc(doc(db, 'tourist_news', n.id), cleanNews, { merge: true });
   } catch (err) {
     console.warn('Error saving news to Firestore:', err);
@@ -1374,6 +1378,119 @@ export function saveConfig(config: SystemConfig) {
   addAuditLog('admin@registapp.uz', 'System Config Update', 'Modified system files or cards configuration in Content Management.');
 }
 
+/**
+ * Formats any date string (ISO, YYYY-MM-DD, timestamp, etc.) into strictly DD-MM-YYYY (дд-мм-гггг).
+ * e.g. "2026-09-22" -> "22-09-2026"
+ * e.g. "2026-09-22T07:35:19.000Z" -> "22-09-2026"
+ * e.g. "22-09-2026" -> "22-09-2026"
+ */
+export function formatPublicationDate(dateStr?: string | null): string {
+  if (!dateStr || typeof dateStr !== 'string' || !dateStr.trim()) {
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    return `${d}-${m}-${y}`;
+  }
+
+  const trimmed = dateStr.trim();
+
+  // If already in DD-MM-YYYY format (e.g. 22-09-2026)
+  const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})$/);
+  if (ddmmyyyyMatch) {
+    const [, day, month, year] = ddmmyyyyMatch;
+    return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
+  }
+
+  // If in YYYY-MM-DD format (e.g. 2026-09-22 or 2026-09-22T...)
+  const yyyymmddMatch = trimmed.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+  if (yyyymmddMatch) {
+    const [, year, month, day] = yyyymmddMatch;
+    return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
+  }
+
+  // Try parsing with new Date
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) {
+    const d = String(parsed.getDate()).padStart(2, '0');
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const y = parsed.getFullYear();
+    return `${d}-${m}-${y}`;
+  }
+
+  return trimmed;
+}
+
+/**
+ * Parses any publication date string (whether DD-MM-YYYY, YYYY-MM-DD, or ISO) to a numeric timestamp for accurate sorting.
+ */
+export function parsePublicationDate(dateStr?: string | null): number {
+  if (!dateStr || typeof dateStr !== 'string') return 0;
+  const trimmed = dateStr.trim();
+  
+  // DD-MM-YYYY or DD.MM.YYYY
+  const ddmmyyyy = trimmed.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`).getTime() || 0;
+  }
+  
+  // YYYY-MM-DD
+  const yyyymmdd = trimmed.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+  if (yyyymmdd) {
+    const [, year, month, day] = yyyymmdd;
+    return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T00:00:00`).getTime() || 0;
+  }
+
+  const timestamp = new Date(trimmed).getTime();
+  return isNaN(timestamp) ? 0 : timestamp;
+}
+
+/**
+ * Resolves an effective creation timestamp for a news article.
+ * 1. Explicit numeric createdAt
+ * 2. Extracted numeric timestamp from id if id has pattern news-TIMESTAMP-...
+ * 3. Fallback to 0
+ */
+export function getNewsTimestamp(item: TouristNews): number {
+  if (item.createdAt && typeof item.createdAt === 'number') {
+    return item.createdAt;
+  }
+  const match = item.id.match(/^news-(\d{10,14})/);
+  if (match) {
+    const ts = parseInt(match[1], 10);
+    if (!isNaN(ts)) return ts;
+  }
+  return 0;
+}
+
+/**
+ * Deterministically sorts news list:
+ * 1. Primary: Publication date descending (newest published date first).
+ * 2. Secondary: Creation timestamp descending (newest intra-day article first).
+ * 3. Tertiary: Custom user-authored articles ahead of system default seed articles.
+ * 4. Quaternary: Lexicographical id descending.
+ */
+export function sortNewsList(list: TouristNews[]): TouristNews[] {
+  return [...list].sort((a, b) => {
+    const timeA = parsePublicationDate(a.publishedAt);
+    const timeB = parsePublicationDate(b.publishedAt);
+    if (timeB !== timeA) {
+      return timeB - timeA;
+    }
+    const createdA = getNewsTimestamp(a);
+    const createdB = getNewsTimestamp(b);
+    if (createdB !== createdA) {
+      return createdB - createdA;
+    }
+    const isDefA = a.id.startsWith('news-infographic-') || (a.id.includes('-2026') && !a.id.match(/^news-\d+/));
+    const isDefB = b.id.startsWith('news-infographic-') || (b.id.includes('-2026') && !b.id.match(/^news-\d+/));
+    if (!isDefA && isDefB) return -1;
+    if (isDefA && !isDefB) return 1;
+    return b.id.localeCompare(a.id);
+  });
+}
+
 let publicNewsUnsub: (() => void) | null = null;
 
 export function initPublicNewsListener() {
@@ -1381,14 +1498,25 @@ export function initPublicNewsListener() {
   try {
     publicNewsUnsub = onSnapshot(collection(db, 'tourist_news'), (snapshot) => {
       if (snapshot.empty) {
-        DEFAULT_NEWS.forEach(n => saveNewsToFirestore(n));
+        const seeded = sortNewsList(DEFAULT_NEWS.map(n => ({
+          ...n,
+          publishedAt: formatPublicationDate(n.publishedAt),
+          createdAt: n.createdAt || getNewsTimestamp(n) || 1000
+        })));
+        seeded.forEach(n => saveNewsToFirestore(n));
+        localStorage.setItem(NEWS_KEY, JSON.stringify(seeded));
+        window.dispatchEvent(new CustomEvent('db-sync'));
         return;
       }
       const remoteItems: TouristNews[] = [];
       snapshot.forEach(docSnap => {
         const d = docSnap.data() as TouristNews;
         if (d && d.id && d.title) {
-          remoteItems.push(d);
+          remoteItems.push({
+            ...d,
+            publishedAt: formatPublicationDate(d.publishedAt),
+            createdAt: d.createdAt || getNewsTimestamp(d) || 1000
+          });
         }
       });
 
@@ -1401,25 +1529,28 @@ export function initPublicNewsListener() {
       })();
 
       const newsMap = new Map<string, TouristNews>();
-      // 1. Seed defaults first
-      DEFAULT_NEWS.forEach(n => newsMap.set(n.id, n));
+      // 1. Seed defaults first with DD-MM-YYYY format
+      DEFAULT_NEWS.forEach(n => newsMap.set(n.id, {
+        ...n,
+        publishedAt: formatPublicationDate(n.publishedAt),
+        createdAt: n.createdAt || getNewsTimestamp(n) || 1000
+      }));
       // 2. Put remote items from Firestore
       remoteItems.forEach(n => newsMap.set(n.id, n));
       // 3. Preserve any local items not yet synced to Firestore, and sync them!
       localNews.forEach(n => {
+        const normalized: TouristNews = {
+          ...n,
+          publishedAt: formatPublicationDate(n.publishedAt),
+          createdAt: n.createdAt || getNewsTimestamp(n) || 1000
+        };
         if (!newsMap.has(n.id)) {
-          newsMap.set(n.id, n);
-          saveNewsToFirestore(n);
+          newsMap.set(n.id, normalized);
+          saveNewsToFirestore(normalized);
         }
       });
 
-      const merged = Array.from(newsMap.values());
-      merged.sort((a, b) => {
-        const timeA = new Date(a.publishedAt).getTime() || 0;
-        const timeB = new Date(b.publishedAt).getTime() || 0;
-        return timeB - timeA;
-      });
-
+      const merged = sortNewsList(Array.from(newsMap.values()));
       localStorage.setItem(NEWS_KEY, JSON.stringify(merged));
       window.dispatchEvent(new CustomEvent('db-sync'));
     }, (error) => {
@@ -1434,8 +1565,13 @@ export function getNews(): TouristNews[] {
   initializeDB();
   const raw = localStorage.getItem(NEWS_KEY);
   if (!raw) {
-    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
-    return DEFAULT_NEWS;
+    const formattedDefaults = sortNewsList(DEFAULT_NEWS.map(n => ({
+      ...n,
+      publishedAt: formatPublicationDate(n.publishedAt),
+      createdAt: n.createdAt || getNewsTimestamp(n) || 1000
+    })));
+    localStorage.setItem(NEWS_KEY, JSON.stringify(formattedDefaults));
+    return formattedDefaults;
   }
   try {
     const parsed = JSON.parse(raw);
@@ -1443,28 +1579,58 @@ export function getNews(): TouristNews[] {
       const defaultMap = new Map(DEFAULT_NEWS.map(n => [n.id, n]));
       const enriched = parsed.map((item: TouristNews) => {
         const def = defaultMap.get(item.id);
-        if (def && (!item.translations || !item.translations.en || !item.translations.fr)) {
+        const formattedDate = formatPublicationDate(item.publishedAt);
+        const createdAt = item.createdAt || getNewsTimestamp(item);
+        if (def) {
           return {
             ...item,
+            publishedAt: formattedDate,
+            createdAt: createdAt || def.createdAt || 1000,
+            illustration: item.illustration || def.illustration,
             translations: {
               ...(def.translations || {}),
               ...(item.translations || {})
             }
           };
         }
-        return item;
+        return {
+          ...item,
+          publishedAt: formattedDate,
+          createdAt: createdAt || getNewsTimestamp(item) || Date.now()
+        };
       });
 
-      return enriched.sort((a: TouristNews, b: TouristNews) => {
-        const timeA = new Date(a.publishedAt).getTime() || 0;
-        const timeB = new Date(b.publishedAt).getTime() || 0;
-        return timeB - timeA;
+      // Ensure any news from DEFAULT_NEWS missing in cache is appended
+      const enrichedIds = new Set(enriched.map(n => n.id));
+      DEFAULT_NEWS.forEach(d => {
+        if (!enrichedIds.has(d.id)) {
+          enriched.push({
+            ...d,
+            publishedAt: formatPublicationDate(d.publishedAt),
+            createdAt: d.createdAt || getNewsTimestamp(d) || 1000
+          });
+        }
       });
+
+      const sorted = sortNewsList(enriched);
+      localStorage.setItem(NEWS_KEY, JSON.stringify(sorted));
+      return sorted;
     }
-    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
-    return DEFAULT_NEWS;
+    const formattedDefaults = sortNewsList(DEFAULT_NEWS.map(n => ({
+      ...n,
+      publishedAt: formatPublicationDate(n.publishedAt),
+      createdAt: n.createdAt || getNewsTimestamp(n) || 1000
+    })));
+    localStorage.setItem(NEWS_KEY, JSON.stringify(formattedDefaults));
+    return formattedDefaults;
   } catch (e) {
-    return DEFAULT_NEWS;
+    const formattedDefaults = sortNewsList(DEFAULT_NEWS.map(n => ({
+      ...n,
+      publishedAt: formatPublicationDate(n.publishedAt),
+      createdAt: n.createdAt || getNewsTimestamp(n) || 1000
+    })));
+    localStorage.setItem(NEWS_KEY, JSON.stringify(formattedDefaults));
+    return formattedDefaults;
   }
 }
 
@@ -1478,56 +1644,60 @@ export function seedDefaultNews(force = false): TouristNews[] {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           const defaultIds = new Set(DEFAULT_NEWS.map(n => n.id));
-          existingCustom = parsed.filter(n => !defaultIds.has(n.id));
+          existingCustom = parsed.filter(n => !defaultIds.has(n.id)).map(n => ({
+            ...n,
+            publishedAt: formatPublicationDate(n.publishedAt),
+            createdAt: n.createdAt || getNewsTimestamp(n) || Date.now()
+          }));
         }
       } catch (_) {}
     }
-    const merged = [...existingCustom, ...DEFAULT_NEWS];
-    merged.sort((a, b) => (new Date(b.publishedAt).getTime() || 0) - (new Date(a.publishedAt).getTime() || 0));
+    const formattedDefaults = DEFAULT_NEWS.map(n => ({
+      ...n,
+      publishedAt: formatPublicationDate(n.publishedAt),
+      createdAt: n.createdAt || getNewsTimestamp(n) || 1000
+    }));
+    const merged = sortNewsList([...existingCustom, ...formattedDefaults]);
     localStorage.setItem(NEWS_KEY, JSON.stringify(merged));
     merged.forEach(n => saveNewsToFirestore(n));
     window.dispatchEvent(new CustomEvent('db-sync'));
     addAuditLog('admin@registapp.uz', 'News Catalog Generated', 'Сгенерировано 10 официальных новостей о туризме в Узбекистане с 10 иллюстрациями.');
     return merged;
   }
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.sort((a: TouristNews, b: TouristNews) => {
-        const timeA = new Date(a.publishedAt).getTime() || 0;
-        const timeB = new Date(b.publishedAt).getTime() || 0;
-        return timeB - timeA;
-      });
-    }
-    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
-    return DEFAULT_NEWS;
-  } catch (e) {
-    localStorage.setItem(NEWS_KEY, JSON.stringify(DEFAULT_NEWS));
-    return DEFAULT_NEWS;
-  }
+  return getNews();
 }
 
 export function saveNews(newsList: TouristNews[]) {
-  localStorage.setItem(NEWS_KEY, JSON.stringify(newsList));
-  newsList.forEach(n => saveNewsToFirestore(n));
+  const normalized = sortNewsList(newsList.map(n => ({
+    ...n,
+    publishedAt: formatPublicationDate(n.publishedAt),
+    createdAt: n.createdAt || getNewsTimestamp(n) || Date.now()
+  })));
+  localStorage.setItem(NEWS_KEY, JSON.stringify(normalized));
+  normalized.forEach(n => saveNewsToFirestore(n));
   window.dispatchEvent(new CustomEvent('db-sync'));
 }
 
-export function addNewsArticle(article: Omit<TouristNews, 'id' | 'publishedAt'> & { id?: string; publishedAt?: string }): TouristNews {
+export function addNewsArticle(article: Omit<TouristNews, 'id' | 'publishedAt'> & { id?: string; publishedAt?: string; createdAt?: number }): TouristNews {
   const news = getNews();
-  const id = article.id || `news-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const now = getTashkentTime();
-  const publishedAt = article.publishedAt || now.toISOString();
+  const now = Date.now();
+  const id = article.id || `news-${now}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const publishedAt = formatPublicationDate(article.publishedAt);
+  const createdAt = article.createdAt || now;
   const newArticle: TouristNews = {
     ...article,
     id,
     publishedAt,
+    createdAt,
     viewsCount: article.viewsCount || 1,
     isFeatured: article.isFeatured ?? true
   };
   news.unshift(newArticle);
-  saveNews(news);
-  addAuditLog('admin@registapp.uz', 'News Published', `Published tourist news: "${newArticle.title}"`);
+  const sorted = sortNewsList(news);
+  localStorage.setItem(NEWS_KEY, JSON.stringify(sorted));
+  saveNewsToFirestore(newArticle);
+  window.dispatchEvent(new CustomEvent('db-sync'));
+  addAuditLog('admin@registapp.uz', 'News Published', `Published tourist news: "${newArticle.title}" (${publishedAt})`);
   return newArticle;
 }
 
@@ -1535,8 +1705,16 @@ export function updateNewsArticle(id: string, updates: Partial<TouristNews>): To
   const news = getNews();
   const index = news.findIndex(n => n.id === id);
   if (index === -1) throw new Error('News article not found');
-  news[index] = { ...news[index], ...updates };
-  saveNews(news);
+  const normalizedUpdates = {
+    ...updates,
+    ...(updates.publishedAt ? { publishedAt: formatPublicationDate(updates.publishedAt) } : {}),
+    createdAt: updates.createdAt || news[index].createdAt || getNewsTimestamp(news[index]) || Date.now()
+  };
+  news[index] = { ...news[index], ...normalizedUpdates };
+  const sorted = sortNewsList(news);
+  localStorage.setItem(NEWS_KEY, JSON.stringify(sorted));
+  saveNewsToFirestore(news[index]);
+  window.dispatchEvent(new CustomEvent('db-sync'));
   addAuditLog('admin@registapp.uz', 'News Updated', `Updated news: "${news[index].title}"`);
   return news[index];
 }
@@ -1545,7 +1723,7 @@ export function deleteNewsArticle(id: string) {
   let news = getNews();
   const article = news.find(n => n.id === id);
   news = news.filter(n => n.id !== id);
-  localStorage.setItem(NEWS_KEY, JSON.stringify(news));
+  localStorage.setItem(NEWS_KEY, JSON.stringify(sortNewsList(news)));
   deleteNewsFromFirestore(id);
   window.dispatchEvent(new CustomEvent('db-sync'));
   if (article) {

@@ -3,10 +3,11 @@ import {
   ChevronLeft, ChevronRight, Calendar, User as UserIcon, Eye, ArrowRight, 
   X, Search, Filter, Sparkles, BookOpen, Share2, Check, ExternalLink, 
   Scale, Clock, ShieldCheck, FileCheck, Building2, MapPin, Compass, 
-  Train, Utensils, Mountain, Shield, Info, ArrowUpRight
+  Train, Utensils, Mountain, Shield, Info, ArrowUpRight, RefreshCw
 } from 'lucide-react';
 import { TouristNews, LanguageCode, getLocalizedNews } from '../types';
-import { getNews, seedDefaultNews } from '../db';
+import { getNews, seedDefaultNews, initPublicNewsListener, formatPublicationDate, parsePublicationDate, sortNewsList } from '../db';
+import { NewsIllustration } from './NewsIllustration';
 
 interface TouristInformationPortalProps {
   currentLanguage: LanguageCode;
@@ -24,9 +25,12 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Sync news if updated elsewhere
+  // Sync news on mount & subscribe to real-time events
   useEffect(() => {
+    initPublicNewsListener();
+    setNews(getNews());
     const handleSync = () => {
       setNews(getNews());
     };
@@ -45,12 +49,8 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Sort news so the latest published news is always first
-  const sortedNews = [...news].sort((a, b) => {
-    const timeA = new Date(a.publishedAt).getTime() || 0;
-    const timeB = new Date(b.publishedAt).getTime() || 0;
-    return timeB - timeA;
-  });
+  // Sort news so the latest published news is always first with deterministic creation timestamp tiebreaker
+  const sortedNews = sortNewsList(news);
 
   // Main featured hero story: newest featured article, or the newest article overall
   const featuredArticle = sortedNews.find(n => n.isFeatured) || sortedNews[0];
@@ -61,7 +61,7 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
   // Archive filtered news
   const categories = ['all', ...Array.from(new Set(news.map(n => getLocalizedNews(n, currentLanguage).category || n.category || 'General')))];
   
-  const filteredArchiveNews = news.filter(item => {
+  const filteredArchiveNews = sortedNews.filter(item => {
     const loc = getLocalizedNews(item, currentLanguage);
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory || loc.category === selectedCategory;
     const q = searchQuery.toLowerCase().trim();
@@ -119,11 +119,27 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
             <Building2 className="h-3.5 w-3.5" />
             <span>Jules Verne Hostel • {currentLanguage === 'ru' ? 'Официальный информационный портал e-mehmon' : 'Official e-mehmon Information Portal'}</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center flex-wrap gap-2">
             <span>{currentLanguage === 'ru' ? 'Информационный портал туризма' : 'Uzbekistan Tourism Portal'}</span>
             <span className="text-xs font-mono font-normal px-2 py-0.5 rounded-full bg-[#23292A] text-[#90B24A] border border-[#3E4747]">
               {news.length} {currentLanguage === 'ru' ? 'статей' : 'articles'}
             </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#7A9A3C]/15 text-[#90B24A] border border-[#7A9A3C]/30 font-semibold">
+              {currentLanguage === 'ru' ? 'Сентябрь 2026' : currentLanguage === 'fr' ? 'Septembre 2026' : 'September 2026'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsRefreshing(true);
+                const updated = getNews();
+                setNews(updated);
+                setTimeout(() => setIsRefreshing(false), 500);
+              }}
+              title={currentLanguage === 'ru' ? 'Обновить ленту новостей' : 'Refresh news feed'}
+              className="p-1.5 rounded-lg bg-[#23292A] hover:bg-[#2B3232] text-gray-300 hover:text-[#90B24A] transition border border-[#3E4747] cursor-pointer"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-[#90B24A]' : ''}`} />
+            </button>
           </h2>
         </div>
 
@@ -196,10 +212,11 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                   
                   {/* Left: Illustration with Infographic Visual Overlay (7 cols) */}
                   <div className="lg:col-span-7 relative h-64 sm:h-72 lg:h-80 overflow-hidden bg-[#111414]">
-                    <img
+                    <NewsIllustration
                       src={featuredArticle.illustration}
                       alt={featLoc.title}
-                      referrerPolicy="no-referrer"
+                      category={featLoc.category || featuredArticle.category}
+                      priority={true}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0F140D] via-[#0F140D]/40 to-transparent" />
@@ -240,7 +257,7 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                           </span>
                           <span className="text-xs text-white font-bold">{featLoc.category}</span>
                         </div>
-                        <span className="text-[11px] font-mono text-[#9AA1A0]">{featuredArticle.publishedAt}</span>
+                        <span className="text-[11px] font-mono text-[#9AA1A0]">{formatPublicationDate(featuredArticle.publishedAt)}</span>
                       </div>
                     )}
                   </div>
@@ -251,7 +268,7 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                       <div className="flex items-center gap-3 text-xs text-[#9AA1A0] font-mono">
                         <span className="flex items-center gap-1 text-[#90B24A]">
                           <Calendar className="h-3.5 w-3.5" />
-                          <span>{featuredArticle.publishedAt}</span>
+                          <span>{formatPublicationDate(featuredArticle.publishedAt)}</span>
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
@@ -361,10 +378,10 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                     <div>
                       {/* Image with Tag */}
                       <div className="h-40 w-full relative overflow-hidden bg-[#111414]">
-                        <img
+                        <NewsIllustration
                           src={item.illustration}
                           alt={loc.title}
-                          referrerPolicy="no-referrer"
+                          category={loc.category || item.category}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#171A1A] via-transparent to-black/30" />
@@ -374,7 +391,7 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                           </span>
                         </div>
                         <div className="absolute bottom-2 right-2.5 text-[10px] font-mono text-gray-300 bg-black/70 px-2 py-0.5 rounded backdrop-blur-sm">
-                          {item.publishedAt}
+                          {formatPublicationDate(item.publishedAt)}
                         </div>
                       </div>
 
@@ -473,7 +490,7 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                       : 'bg-[#111414] text-gray-400 border-[#2B3232] hover:border-[#3E4747] hover:text-white'
                   }`}
                 >
-                  {cat === 'all' ? (currentLanguage === 'ru' ? 'Все (10)' : 'All') : cat}
+                  {cat === 'all' ? (currentLanguage === 'ru' ? `Все (${news.length})` : currentLanguage === 'fr' ? `Tous (${news.length})` : `All (${news.length})`) : cat}
                 </button>
               ))}
             </div>
@@ -498,10 +515,10 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                   >
                     {/* Thumbnail */}
                     <div className="h-20 w-24 sm:h-24 sm:w-28 rounded-lg overflow-hidden shrink-0 bg-[#0E1010] relative">
-                      <img
+                      <NewsIllustration
                         src={item.illustration}
                         alt={loc.title}
-                        referrerPolicy="no-referrer"
+                        category={loc.category || item.category}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
@@ -512,7 +529,7 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                         <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono mb-1">
                           <span className="text-[#90B24A] font-semibold">{loc.category}</span>
                           <span>•</span>
-                          <span>{item.publishedAt}</span>
+                          <span>{formatPublicationDate(item.publishedAt)}</span>
                         </div>
                         <h4 className="text-xs font-bold text-white group-hover:text-[#90B24A] transition-colors line-clamp-2 leading-snug">
                           {loc.title}
@@ -656,7 +673,7 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                     {activeLoc.category || (currentLanguage === 'ru' ? 'Туризм в Узбекистане' : 'Tourism')}
                   </span>
                   <span className="text-xs text-gray-400 font-mono">
-                    {activeArticle.publishedAt}
+                    {formatPublicationDate(activeArticle.publishedAt)}
                   </span>
                 </div>
 
@@ -688,10 +705,10 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
 
               {/* Illustration */}
               <div className="relative rounded-2xl overflow-hidden h-56 sm:h-72 w-full bg-[#0E1010] border border-[#2B3232]">
-                <img
+                <NewsIllustration
                   src={activeArticle.illustration}
                   alt={activeLoc.title}
-                  referrerPolicy="no-referrer"
+                  category={activeLoc.category || activeArticle.category}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute bottom-2 right-3 text-[11px] font-mono text-gray-300 bg-black/70 px-2.5 py-0.5 rounded backdrop-blur-md">

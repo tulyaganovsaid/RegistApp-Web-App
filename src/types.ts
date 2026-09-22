@@ -109,7 +109,8 @@ export interface TouristNews {
   body: string; // Markdown or plain text news body
   summary?: string; // Brief excerpt
   category?: string; // e.g. "Законодательство", "Туризм", "Транспорт", "Визы"
-  publishedAt: string; // YYYY-MM-DD or ISO string
+  publishedAt: string; // DD-MM-YYYY (дд-мм-гггг)
+  createdAt?: number; // Milliseconds timestamp for deterministic intra-day ordering
   isFeatured?: boolean; // Main / Top 3 news flag
   author?: string;
   viewsCount?: number;

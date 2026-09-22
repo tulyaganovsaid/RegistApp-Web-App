@@ -11,7 +11,7 @@ import {
   deleteStaffUser, resetStaffPassword, updateStaffUser, getAuditLogs, AuditLog,
   getNews, addNewsArticle, updateNewsArticle, deleteNewsArticle, toggleNewsFeatured,
   getLegalKnowledgeBase, saveLegalKnowledgeBase, seedDefaultNews,
-  deleteOrder, deleteMultipleOrders, getConsents, addAuditLog
+  deleteOrder, deleteMultipleOrders, getConsents, addAuditLog, formatPublicationDate
 } from '../db';
 import { DEFAULT_LEGAL_KNOWLEDGE_BASE } from '../defaultContent';
 import { getActiveDocumentVersions } from '../locales/legal';
@@ -91,6 +91,7 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
   const [newsSummary, setNewsSummary] = useState('');
   const [newsCategory, setNewsCategory] = useState('Законодательство');
   const [newsAuthor, setNewsAuthor] = useState('Администрация RegistApp');
+  const [newsPublishedAt, setNewsPublishedAt] = useState(() => formatPublicationDate());
   const [newsIsFeatured, setNewsIsFeatured] = useState(true);
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
   const [showNewsForm, setShowNewsForm] = useState(false);
@@ -241,6 +242,7 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
     }
     const finalIllustration = newsIllustration.trim() || 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=1200&auto=format&fit=crop';
     const finalSummary = newsSummary.trim() || (newsBody.trim().length > 160 ? newsBody.trim().slice(0, 160) + '...' : newsBody.trim());
+    const finalPublishedAt = formatPublicationDate(newsPublishedAt);
 
     if (editingNewsId) {
       updateNewsArticle(editingNewsId, {
@@ -250,6 +252,7 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
         summary: finalSummary,
         category: newsCategory,
         author: newsAuthor.trim() || 'Администрация RegistApp',
+        publishedAt: finalPublishedAt,
         isFeatured: newsIsFeatured
       });
       showFeedback('Новость успешно обновлена!');
@@ -261,6 +264,7 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
         summary: finalSummary,
         category: newsCategory,
         author: newsAuthor.trim() || 'Администрация RegistApp',
+        publishedAt: finalPublishedAt,
         isFeatured: newsIsFeatured
       });
       showFeedback('Новость успешно опубликована в ленте!');
@@ -271,6 +275,7 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
     setNewsIllustration('');
     setNewsBody('');
     setNewsSummary('');
+    setNewsPublishedAt(formatPublicationDate());
     setEditingNewsId(null);
     setShowNewsForm(false);
     setNewsList(getNews());
@@ -284,6 +289,7 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
     setNewsSummary(item.summary);
     setNewsCategory(item.category);
     setNewsAuthor(item.author || '');
+    setNewsPublishedAt(formatPublicationDate(item.publishedAt));
     setNewsIsFeatured(item.isFeatured ?? true);
     setShowNewsForm(true);
   };
@@ -1502,7 +1508,7 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {/* Category */}
                       <div>
                         <label htmlFor="select-news-category" className="block text-xs font-semibold text-gray-300 mb-1.5">
@@ -1520,6 +1526,35 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
                           <option value="Туризм и культура">Туризм и культура (Tourism & Culture)</option>
                           <option value="События">События и праздники (Events)</option>
                         </select>
+                      </div>
+
+                      {/* Publication Date */}
+                      <div>
+                        <label htmlFor="input-news-published-at" className="block text-xs font-semibold text-gray-300 mb-1.5 flex items-center justify-between">
+                          <span>{currentLanguage === 'ru' ? 'Дата публикации' : 'Publication Date'} <span className="text-red-400">*</span></span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setNewsPublishedAt(formatPublicationDate())}
+                              className="text-[10px] text-[#90B24A] hover:underline font-mono cursor-pointer"
+                              title="Установить сегодняшнюю дату в формате дд-мм-гггг"
+                            >
+                              {currentLanguage === 'ru' ? 'Сегодня' : 'Today'}
+                            </button>
+                            <span className="text-[10px] text-[#90B24A] font-mono">дд-мм-гггг</span>
+                          </div>
+                        </label>
+                        <input
+                          id="input-news-published-at"
+                          type="text"
+                          required
+                          value={newsPublishedAt}
+                          onChange={(e) => setNewsPublishedAt(e.target.value)}
+                          onBlur={() => setNewsPublishedAt(prev => formatPublicationDate(prev))}
+                          placeholder="22-09-2026"
+                          title="Формат: дд-мм-гггг (например, 22-09-2026)"
+                          className="w-full rounded-xl border border-[#2B3232] bg-[#0E1010] px-3.5 py-2.5 text-xs text-white placeholder-gray-600 outline-none focus:border-[#7A9A3C] transition font-mono"
+                        />
                       </div>
 
                       {/* Author */}
@@ -1749,7 +1784,9 @@ export default function AdminDashboard({ currentLanguage, setLanguage, currentUs
 
                         {/* Content */}
                         <div className="p-4 space-y-2">
-                          <span className="text-[10px] text-gray-500 font-mono block">{item.publishedAt} • {item.author || 'RegistApp'}</span>
+                          <span className="text-[10px] text-gray-500 font-mono block">
+                            <span className="text-[#90B24A]">{formatPublicationDate(item.publishedAt)}</span> • {item.author || 'RegistApp'}
+                          </span>
                           <h4 className="text-xs font-bold text-white line-clamp-2 group-hover:text-[#90B24A] transition-colors leading-snug">
                             {item.title}
                           </h4>
