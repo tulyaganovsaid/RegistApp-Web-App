@@ -29,6 +29,26 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
     };
   }, []);
 
+  // Lock body & html scroll on mobile and desktop when viewing article or archive modal
+  // Ensures that only the modal content scrolls on phones, and never the page/space behind it
+  useEffect(() => {
+    if (selectedArticle || showArchive) {
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      const originalTouchAction = document.body.style.touchAction;
+
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+        document.body.style.touchAction = originalTouchAction;
+      };
+    }
+  }, [selectedArticle, showArchive]);
+
   // Deterministically sort news by publication date and creation timestamp
   const sortedNews = sortNewsList(news);
   const top3News = sortedNews.slice(0, 3);
@@ -124,7 +144,7 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
                   </span>
                   {idx === 0 && (
                     <span className="rounded-full bg-[#7A9A3C] px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider">
-                      {currentLanguage === 'ru' ? 'Главная' : currentLanguage === 'fr' ? 'À la une' : 'Top'}
+                      {currentLanguage === 'ru' ? 'Последняя' : currentLanguage === 'fr' ? 'À la une' : 'Latest'}
                     </span>
                   )}
                 </div>
@@ -178,15 +198,21 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
         return (
           <div 
             id="modal-article-view" 
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto animate-fadeIn"
+            className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md overflow-hidden animate-fadeIn touch-none"
             onClick={() => setSelectedArticle(null)}
+            onTouchMove={(e) => {
+              if (e.target === e.currentTarget) {
+                e.preventDefault();
+              }
+            }}
           >
             <div 
-              className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-[#3E4747] bg-[#1E2222] overflow-hidden shadow-2xl text-left"
+              className="relative w-full max-w-2xl h-full sm:h-auto max-h-[100dvh] sm:max-h-[90vh] flex flex-col rounded-none sm:rounded-2xl border-0 sm:border border-[#3E4747] bg-[#1E2222] overflow-hidden shadow-2xl text-left"
               onClick={(e) => e.stopPropagation()}
+              style={{ overscrollBehavior: 'contain' }}
             >
               {/* Header Hero Image */}
-              <div className="relative h-56 sm:h-72 w-full overflow-hidden bg-[#171A1A] shrink-0">
+              <div className="relative h-48 sm:h-64 w-full overflow-hidden bg-[#171A1A] shrink-0">
                 <NewsIllustration
                   src={selectedArticle.illustration}
                   alt={loc.title}
@@ -200,25 +226,28 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
                   id="btn-close-article-modal"
                   type="button"
                   onClick={() => setSelectedArticle(null)}
-                  className="absolute top-4 right-4 h-9 w-9 rounded-full bg-[#171A1A]/80 hover:bg-[#171A1A] text-white flex items-center justify-center border border-[#3E4747] transition-all cursor-pointer"
+                  className="absolute top-3 right-3 sm:top-4 sm:right-4 h-9 w-9 rounded-full bg-[#171A1A]/90 hover:bg-[#171A1A] text-white flex items-center justify-center border border-[#3E4747] transition-all cursor-pointer z-10 shadow-lg"
                   title={currentLanguage === 'ru' ? 'Закрыть' : currentLanguage === 'fr' ? 'Fermer' : 'Close'}
                 >
                   <X className="h-4 w-4" />
                 </button>
 
                 {/* Category & Meta Overlays */}
-                <div className="absolute bottom-4 left-6 right-6">
-                  <span className="inline-block rounded-full bg-[#7A9A3C] px-3 py-1 text-[11px] font-bold text-white mb-2 shadow-sm">
+                <div className="absolute bottom-3 left-4 right-4 sm:bottom-4 sm:left-6 sm:right-6">
+                  <span className="inline-block rounded-full bg-[#7A9A3C] px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-[11px] font-bold text-white mb-1.5 shadow-sm">
                     {loc.category}
                   </span>
-                  <h2 className="text-lg sm:text-xl font-bold text-white leading-tight">
+                  <h2 className="text-base sm:text-xl font-bold text-white leading-tight line-clamp-2">
                     {loc.title}
                   </h2>
                 </div>
               </div>
 
-              {/* Scrollable Content Body */}
-              <div className="p-6 overflow-y-auto space-y-4 text-sm leading-relaxed text-[#E5E5E5]">
+              {/* Scrollable Content Body - ISOLATED SCROLL FOR MOBILE */}
+              <div 
+                className="p-4 sm:p-6 overflow-y-auto overscroll-contain flex-1 space-y-4 text-xs sm:text-sm leading-relaxed text-[#E5E5E5]"
+                style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
+              >
                 <div className="flex flex-wrap items-center gap-4 text-xs text-[#9AA1A0] border-b border-[#2B3232] pb-3">
                   <span className="flex items-center gap-1.5 font-mono">
                     <Calendar className="h-3.5 w-3.5 text-[#7A9A3C]" />
@@ -269,21 +298,27 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
       {showArchive && (
         <div 
           id="modal-news-archive" 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md overflow-hidden animate-fadeIn touch-none"
           onClick={() => setShowArchive(false)}
+          onTouchMove={(e) => {
+            if (e.target === e.currentTarget) {
+              e.preventDefault();
+            }
+          }}
         >
           <div 
-            className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl border border-[#3E4747] bg-[#1E2222] overflow-hidden shadow-2xl text-left"
+            className="relative w-full max-w-4xl h-full sm:h-auto max-h-[100dvh] sm:max-h-[90vh] flex flex-col rounded-none sm:rounded-2xl border-0 sm:border border-[#3E4747] bg-[#1E2222] overflow-hidden shadow-2xl text-left"
             onClick={(e) => e.stopPropagation()}
+            style={{ overscrollBehavior: 'contain' }}
           >
             {/* Modal Header */}
-            <div className="p-5 border-b border-[#2B3232] flex items-center justify-between bg-[#171A1A]/80">
+            <div className="p-4 sm:p-5 border-b border-[#2B3232] flex items-center justify-between bg-[#171A1A]/80 shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="h-9 w-9 rounded-xl bg-[#7A9A3C]/10 border border-[#7A9A3C]/30 flex items-center justify-center text-[#7A9A3C]">
                   <Bookmark className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">
+                  <h3 className="text-sm sm:text-base font-bold text-white">
                     {currentLanguage === 'ru' ? 'Архив туристических новостей' : currentLanguage === 'fr' ? 'Archives des actualités' : 'Tourist News Archive'}
                   </h3>
                   <p className="text-xs text-[#9AA1A0]">
@@ -303,7 +338,7 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
             </div>
 
             {/* Filter & Search Bar */}
-            <div className="p-4 border-b border-[#2B3232] bg-[#23292A]/50 space-y-3">
+            <div className="p-3 sm:p-4 border-b border-[#2B3232] bg-[#23292A]/50 space-y-3 shrink-0">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9AA1A0]" />
@@ -347,7 +382,10 @@ export function TouristNewsBlock({ currentLanguage }: TouristNewsBlockProps) {
             </div>
 
             {/* Archive List */}
-            <div className="p-4 overflow-y-auto space-y-3 max-h-[60vh]">
+            <div 
+              className="p-3 sm:p-4 overflow-y-auto overscroll-contain space-y-3 flex-1"
+              style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
+            >
               {filteredArchive.length === 0 ? (
                 <div className="text-center py-12 text-[#9AA1A0]">
                   <Newspaper className="mx-auto h-10 w-10 text-[#3E4747] mb-2" />

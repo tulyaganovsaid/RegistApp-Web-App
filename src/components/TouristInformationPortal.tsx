@@ -49,14 +49,34 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Lock body & html scroll on mobile and desktop when viewing a news article
+  // This guarantees that ONLY the news modal itself scrolls, and the space behind it is completely frozen
+  useEffect(() => {
+    if (activeArticle) {
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      const originalTouchAction = document.body.style.touchAction;
+
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+        document.body.style.touchAction = originalTouchAction;
+      };
+    }
+  }, [activeArticle]);
+
   // Sort news so the latest published news is always first with deterministic creation timestamp tiebreaker
   const sortedNews = sortNewsList(news);
 
-  // Main featured hero story: newest featured article, or the newest article overall
-  const featuredArticle = sortedNews.find(n => n.isFeatured) || sortedNews[0];
+  // Main featured hero story: ALWAYS the very latest article overall at the top
+  const featuredArticle = sortedNews[0];
   
   // Previous/other news for carousel (all other stories)
-  const carouselNews = sortedNews.filter(n => n.id !== featuredArticle?.id);
+  const carouselNews = sortedNews.slice(1);
 
   // Archive filtered news
   const categories = ['all', ...Array.from(new Set(news.map(n => getLocalizedNews(n, currentLanguage).category || n.category || 'General')))];
@@ -73,15 +93,12 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
   });
 
   // Carousel navigation
-  const itemsPerPage = 2; // desktop displays 2 per page, mobile 1
-  const maxCarouselIndex = Math.max(0, carouselNews.length - 1);
-
   const nextCarousel = () => {
-    setCarouselIndex(prev => (prev >= carouselNews.length - itemsPerPage ? 0 : prev + 1));
+    setCarouselIndex(prev => (prev + 1 >= carouselNews.length ? 0 : prev + 1));
   };
 
   const prevCarousel = () => {
-    setCarouselIndex(prev => (prev <= 0 ? Math.max(0, carouselNews.length - itemsPerPage) : prev - 1));
+    setCarouselIndex(prev => (prev <= 0 ? Math.max(0, carouselNews.length - 1) : prev - 1));
   };
 
   const handleCopyLink = (newsItem: TouristNews) => {
@@ -94,19 +111,19 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
     setActiveArticle(article);
   };
 
-  // Navigating through articles inside modal
+  // Navigating through articles inside modal in exact sorted chronological order
   const navigateArticle = (direction: 'prev' | 'next') => {
     if (!activeArticle) return;
-    const currentIndex = news.findIndex(n => n.id === activeArticle.id);
+    const currentIndex = sortedNews.findIndex(n => n.id === activeArticle.id);
     if (currentIndex === -1) return;
     
     let nextIndex: number;
     if (direction === 'next') {
-      nextIndex = (currentIndex + 1) % news.length;
+      nextIndex = (currentIndex + 1) % sortedNews.length;
     } else {
-      nextIndex = (currentIndex - 1 + news.length) % news.length;
+      nextIndex = (currentIndex - 1 + sortedNews.length) % sortedNews.length;
     }
-    setActiveArticle(news[nextIndex]);
+    setActiveArticle(sortedNews[nextIndex]);
   };
 
   return (
@@ -196,11 +213,15 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                 onClick={() => openArticle(featuredArticle)}
                 className="group relative rounded-2xl border-2 border-[#7A9A3C]/60 bg-gradient-to-b from-[#1E2519] via-[#161C12] to-[#0F140D] overflow-hidden shadow-2xl hover:border-[#90B24A] transition-all duration-300 cursor-pointer"
               >
-                {/* Top Infographic Accent Ribbon */}
+                {/* Top Accent Ribbon */}
                 <div className="bg-gradient-to-r from-[#7A9A3C] via-[#90B24A] to-[#7A9A3C] text-black px-4 py-1.5 text-xs font-extrabold tracking-wider uppercase flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 fill-black" />
-                    <span>{currentLanguage === 'ru' ? 'Главная новость • Официальная инфографика' : currentLanguage === 'fr' ? 'À la une • Infographie officielle' : 'Hero Story • Official Infographic'}</span>
+                    <span>
+                      {featuredArticle.id === 'news-infographic-emehmon-2026'
+                        ? (currentLanguage === 'ru' ? 'Главная новость • Официальная инфографика' : currentLanguage === 'fr' ? 'À la une • Infographie officielle' : 'Hero Story • Official Infographic')
+                        : (currentLanguage === 'ru' ? 'Самая последняя публикация' : currentLanguage === 'fr' ? 'Dernière actualité' : 'Latest News Story')}
+                    </span>
                   </div>
                   <span className="text-[10px] font-mono font-bold bg-black/20 px-2 py-0.5 rounded">
                     {featLoc.category || (currentLanguage === 'ru' ? 'Законодательство РУз' : 'Legislation')}
@@ -659,29 +680,35 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
         return (
           <div 
             id="modal-article-detail"
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-fade-in"
+            className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-fade-in overflow-hidden touch-none"
             onClick={() => setActiveArticle(null)}
+            onTouchMove={(e) => {
+              if (e.target === e.currentTarget) {
+                e.preventDefault();
+              }
+            }}
           >
             <div 
-              className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border-2 border-[#7A9A3C] bg-[#141A14] text-white shadow-2xl p-5 sm:p-7 space-y-5"
+              className="relative w-full max-w-3xl h-full sm:h-auto max-h-[100dvh] sm:max-h-[90vh] flex flex-col rounded-none sm:rounded-3xl border-0 sm:border-2 border-[#7A9A3C] bg-[#141A14] text-white shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
+              style={{ overscrollBehavior: 'contain' }}
             >
-              {/* Modal Header Controls */}
-              <div className="flex items-center justify-between border-b border-[#2B3232] pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#7A9A3C] text-black">
+              {/* Sticky Top Header Controls */}
+              <div className="flex items-center justify-between border-b border-[#2B3232] px-4 py-3 sm:px-6 sm:py-3.5 bg-[#171E17] shrink-0 z-20">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[11px] sm:text-xs font-bold px-2.5 py-0.5 sm:py-1 rounded-full bg-[#7A9A3C] text-black shrink-0">
                     {activeLoc.category || (currentLanguage === 'ru' ? 'Туризм в Узбекистане' : 'Tourism')}
                   </span>
-                  <span className="text-xs text-gray-400 font-mono">
+                  <span className="text-xs text-gray-400 font-mono shrink-0">
                     {formatPublicationDate(activeArticle.publishedAt)}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => handleCopyLink(activeArticle)}
-                    className="p-1.5 rounded-lg bg-[#23292A] text-gray-300 hover:text-white hover:bg-[#2B3232] transition text-xs flex items-center gap-1"
+                    className="p-1.5 rounded-lg bg-[#23292A] text-gray-300 hover:text-white hover:bg-[#2B3232] transition text-xs flex items-center gap-1 cursor-pointer"
                     title={currentLanguage === 'ru' ? 'Скопировать ссылку' : currentLanguage === 'fr' ? 'Copier le lien' : 'Copy link'}
                   >
                     {copiedId === activeArticle.id ? <Check className="h-4 w-4 text-[#90B24A]" /> : <Share2 className="h-4 w-4" />}
@@ -690,7 +717,7 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                     type="button"
                     id="btn-close-article-modal"
                     onClick={() => setActiveArticle(null)}
-                    className="p-1.5 rounded-lg bg-[#23292A] text-gray-300 hover:text-white hover:bg-red-900/50 transition"
+                    className="p-1.5 rounded-lg bg-[#23292A] text-gray-300 hover:text-white hover:bg-red-900/50 transition cursor-pointer"
                     title={currentLanguage === 'ru' ? 'Закрыть' : currentLanguage === 'fr' ? 'Fermer' : 'Close'}
                   >
                     <X className="h-5 w-5" />
@@ -698,88 +725,94 @@ export const TouristInformationPortal: React.FC<TouristInformationPortalProps> =
                 </div>
               </div>
 
-              {/* Modal Title */}
-              <h2 className="text-lg sm:text-2xl font-extrabold text-white leading-tight">
-                {activeLoc.title}
-              </h2>
+              {/* Scrollable Content Body - ISOLATED SCROLL CONTAINER FOR MOBILE & DESKTOP */}
+              <div 
+                className="overflow-y-auto overscroll-contain flex-1 p-4 sm:p-6 space-y-5 text-white"
+                style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
+              >
+                {/* Modal Title */}
+                <h2 className="text-lg sm:text-2xl font-extrabold text-white leading-tight">
+                  {activeLoc.title}
+                </h2>
 
-              {/* Illustration */}
-              <div className="relative rounded-2xl overflow-hidden h-56 sm:h-72 w-full bg-[#0E1010] border border-[#2B3232]">
-                <NewsIllustration
-                  src={activeArticle.illustration}
-                  alt={activeLoc.title}
-                  category={activeLoc.category || activeArticle.category}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute bottom-2 right-3 text-[11px] font-mono text-gray-300 bg-black/70 px-2.5 py-0.5 rounded backdrop-blur-md">
-                  {currentLanguage === 'ru' ? 'Автор: ' : currentLanguage === 'fr' ? 'Auteur : ' : 'Author: '}{activeArticle.author || 'RegistApp'}
-                </div>
-              </div>
-
-              {/* Infographic Callout if this is the featured infographic */}
-              {activeArticle.id.includes('infographic') && (
-                <div className="rounded-2xl border-2 border-[#7A9A3C]/50 bg-gradient-to-r from-[#1E2519] to-[#12160F] p-4 space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#90B24A] flex items-center gap-2">
-                    <Sparkles className="h-4 w-4" />
-                    <span>{currentLanguage === 'ru' ? 'Пошаговая инфографика оформления' : currentLanguage === 'fr' ? 'Infographie étape par étape' : 'Step-by-step registration infographic'}</span>
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                    <div className="bg-[#171A1A] p-2.5 rounded-xl border border-[#2B3232]">
-                      <span className="block font-mono text-sm font-bold text-white">01</span>
-                      <span className="font-semibold text-[#90B24A]">{currentLanguage === 'ru' ? 'Пересечение КПП' : currentLanguage === 'fr' ? 'Passage frontière' : 'Border crossing'}</span>
-                      <span className="text-[10px] text-gray-400 block mt-0.5">{currentLanguage === 'ru' ? 'Въездной штамп' : currentLanguage === 'fr' ? 'Tampon d\'entrée' : 'Entry stamp'}</span>
-                    </div>
-                    <div className="bg-[#171A1A] p-2.5 rounded-xl border border-[#2B3232]">
-                      <span className="block font-mono text-sm font-bold text-white">02</span>
-                      <span className="font-semibold text-[#90B24A]">{currentLanguage === 'ru' ? '3 рабочих дня' : currentLanguage === 'fr' ? '3 jours ouvrés' : '3 working days'}</span>
-                      <span className="text-[10px] text-gray-400 block mt-0.5">{currentLanguage === 'ru' ? 'Без воскресений' : currentLanguage === 'fr' ? 'Sans dimanche' : 'Excluding Sunday'}</span>
-                    </div>
-                    <div className="bg-[#171A1A] p-2.5 rounded-xl border border-[#2B3232]">
-                      <span className="block font-mono text-sm font-bold text-white">03</span>
-                      <span className="font-semibold text-[#90B24A]">{currentLanguage === 'ru' ? 'Онлайн RegistApp' : currentLanguage === 'fr' ? 'En ligne RegistApp' : 'Online RegistApp'}</span>
-                      <span className="text-[10px] text-gray-400 block mt-0.5">{currentLanguage === 'ru' ? 'База e-mehmon' : currentLanguage === 'fr' ? 'Base e-mehmon' : 'e-mehmon DB'}</span>
-                    </div>
-                    <div className="bg-[#171A1A] p-2.5 rounded-xl border border-[#2B3232]">
-                      <span className="block font-mono text-sm font-bold text-white">04</span>
-                      <span className="font-semibold text-[#90B24A]">QR-код</span>
-                      <span className="text-[10px] text-gray-400 block mt-0.5">{currentLanguage === 'ru' ? 'В смартфоне 24/7' : currentLanguage === 'fr' ? 'Sur mobile 24/7' : 'On mobile 24/7'}</span>
-                    </div>
+                {/* Illustration */}
+                <div className="relative rounded-2xl overflow-hidden h-52 sm:h-72 w-full bg-[#0E1010] border border-[#2B3232] shrink-0">
+                  <NewsIllustration
+                    src={activeArticle.illustration}
+                    alt={activeLoc.title}
+                    category={activeLoc.category || activeArticle.category}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-2 right-3 text-[11px] font-mono text-gray-300 bg-black/70 px-2.5 py-0.5 rounded backdrop-blur-md">
+                    {currentLanguage === 'ru' ? 'Автор: ' : currentLanguage === 'fr' ? 'Auteur : ' : 'Author: '}{activeArticle.author || 'RegistApp'}
                   </div>
                 </div>
-              )}
 
-              {/* Article Content Body */}
-              <div className="space-y-4 text-xs sm:text-sm text-gray-200 leading-relaxed font-sans whitespace-pre-line border-t border-[#2B3232] pt-4">
-                {activeLoc.body}
-              </div>
+                {/* Infographic Callout if this is the featured infographic */}
+                {activeArticle.id.includes('infographic') && (
+                  <div className="rounded-2xl border-2 border-[#7A9A3C]/50 bg-gradient-to-r from-[#1E2519] to-[#12160F] p-4 space-y-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#90B24A] flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      <span>{currentLanguage === 'ru' ? 'Пошаговая инфографика оформления' : currentLanguage === 'fr' ? 'Infographie étape par étape' : 'Step-by-step registration infographic'}</span>
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                      <div className="bg-[#171A1A] p-2.5 rounded-xl border border-[#2B3232]">
+                        <span className="block font-mono text-sm font-bold text-white">01</span>
+                        <span className="font-semibold text-[#90B24A]">{currentLanguage === 'ru' ? 'Пересечение КПП' : currentLanguage === 'fr' ? 'Passage frontière' : 'Border crossing'}</span>
+                        <span className="text-[10px] text-gray-400 block mt-0.5">{currentLanguage === 'ru' ? 'Въездной штамп' : currentLanguage === 'fr' ? 'Tampon d\'entrée' : 'Entry stamp'}</span>
+                      </div>
+                      <div className="bg-[#171A1A] p-2.5 rounded-xl border border-[#2B3232]">
+                        <span className="block font-mono text-sm font-bold text-white">02</span>
+                        <span className="font-semibold text-[#90B24A]">{currentLanguage === 'ru' ? '3 рабочих дня' : currentLanguage === 'fr' ? '3 jours ouvrés' : '3 working days'}</span>
+                        <span className="text-[10px] text-gray-400 block mt-0.5">{currentLanguage === 'ru' ? 'Без воскресений' : currentLanguage === 'fr' ? 'Sans dimanche' : 'Excluding Sunday'}</span>
+                      </div>
+                      <div className="bg-[#171A1A] p-2.5 rounded-xl border border-[#2B3232]">
+                        <span className="block font-mono text-sm font-bold text-white">03</span>
+                        <span className="font-semibold text-[#90B24A]">{currentLanguage === 'ru' ? 'Онлайн RegistApp' : currentLanguage === 'fr' ? 'En ligne RegistApp' : 'Online RegistApp'}</span>
+                        <span className="text-[10px] text-gray-400 block mt-0.5">{currentLanguage === 'ru' ? 'База e-mehmon' : currentLanguage === 'fr' ? 'Base e-mehmon' : 'e-mehmon DB'}</span>
+                      </div>
+                      <div className="bg-[#171A1A] p-2.5 rounded-xl border border-[#2B3232]">
+                        <span className="block font-mono text-sm font-bold text-white">04</span>
+                        <span className="font-semibold text-[#90B24A]">QR-код</span>
+                        <span className="text-[10px] text-gray-400 block mt-0.5">{currentLanguage === 'ru' ? 'В смартфоне 24/7' : currentLanguage === 'fr' ? 'Sur mobile 24/7' : 'On mobile 24/7'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-              {/* Footer Navigation within Modal */}
-              <div className="flex items-center justify-between border-t border-[#2B3232] pt-4">
-                <button
-                  type="button"
-                  onClick={() => navigateArticle('prev')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#23292A] hover:bg-[#2B3232] text-xs font-semibold text-gray-300 hover:text-white transition"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  <span>{currentLanguage === 'ru' ? 'Предыдущая' : currentLanguage === 'fr' ? 'Précédente' : 'Previous'}</span>
-                </button>
+                {/* Article Content Body */}
+                <div className="space-y-4 text-xs sm:text-sm text-gray-200 leading-relaxed font-sans whitespace-pre-line border-t border-[#2B3232] pt-4">
+                  {activeLoc.body}
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setActiveArticle(null)}
-                  className="px-4 py-2 rounded-xl bg-[#7A9A3C] hover:bg-[#5E7A2A] text-black font-bold text-xs transition shadow-lg shadow-[#7A9A3C]/20"
-                >
-                  {currentLanguage === 'ru' ? 'Закрыть материал' : currentLanguage === 'fr' ? 'Fermer' : 'Close Article'}
-                </button>
+                {/* Footer Navigation within Modal */}
+                <div className="flex items-center justify-between border-t border-[#2B3232] pt-4 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => navigateArticle('prev')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#23292A] hover:bg-[#2B3232] text-xs font-semibold text-gray-300 hover:text-white transition cursor-pointer"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span>{currentLanguage === 'ru' ? 'Предыдущая' : currentLanguage === 'fr' ? 'Précédente' : 'Previous'}</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => navigateArticle('next')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#23292A] hover:bg-[#2B3232] text-xs font-semibold text-gray-300 hover:text-white transition"
-                >
-                  <span>{currentLanguage === 'ru' ? 'Следующая' : currentLanguage === 'fr' ? 'Suivante' : 'Next'}</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveArticle(null)}
+                    className="px-4 py-2 rounded-xl bg-[#7A9A3C] hover:bg-[#5E7A2A] text-black font-bold text-xs transition shadow-lg shadow-[#7A9A3C]/20 cursor-pointer"
+                  >
+                    {currentLanguage === 'ru' ? 'Закрыть материал' : currentLanguage === 'fr' ? 'Fermer' : 'Close Article'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => navigateArticle('next')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#23292A] hover:bg-[#2B3232] text-xs font-semibold text-gray-300 hover:text-white transition cursor-pointer"
+                  >
+                    <span>{currentLanguage === 'ru' ? 'Следующая' : currentLanguage === 'fr' ? 'Suivante' : 'Next'}</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
